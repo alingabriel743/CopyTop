@@ -1,0 +1,23 @@
+# Baza aplicației
+streamlit==1.27.0
+pandas==2.0.3  # Versiune mai stabilă cu Python 3.12
+numpy
+
+# Baza de date
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.23
+
+# UI și componente
+streamlit-authenticator==0.2.3
+plotly==5.18.0
+streamlit-pandas-profiling
+
+# Export
+xlsxwriter==3.1.9
+openpyxl==3.1.2
+reportlab==4.0.7
+
+# Utils
+python-dotenv==1.0.0
+pydantic==2.5.2
+tomli==2.0.1  # Pentru Python < 3.11
