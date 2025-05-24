@@ -21,8 +21,11 @@ class Comanda(Base):
     nr_pagini = Column(Integer, nullable=False, default=2)
     indice_corectie = Column(Float, nullable=False, default=1.0)
     fsc = Column(Boolean, nullable=False, default=False)
-    cod_fsc = Column(String(50), nullable=True)
-    certificare_fsc = Column(String(50), nullable=True)
+    
+    # Coduri FSC pentru produsul final (din coloana dreapta)
+    cod_fsc_output = Column(String(50), nullable=True)  # Cod pentru produsul final
+    certificare_fsc_output = Column(String(50), nullable=True)  # Certificare pentru produsul final
+    
     hartie_id = Column(Integer, ForeignKey('hartie.id'), nullable=False)
     coala_tipar = Column(String(50), nullable=False)
     nr_culori = Column(String(10), nullable=False)
@@ -40,6 +43,9 @@ class Comanda(Base):
     detalii_livrare = Column(Text, nullable=True)
     pret = Column(Float, nullable=True)
     facturata = Column(Boolean, nullable=False, default=False)
+    
+    # Calea către fișierul PDF generat
+    pdf_path = Column(String(255), nullable=True)
     
     # Relații
     beneficiar = relationship("Beneficiar", back_populates="comenzi")

@@ -6,8 +6,10 @@ from models import get_session
 from models.comenzi import Comanda
 from models.beneficiari import Beneficiar
 from models.hartie import Hartie
+from services.pdf_generator import genereaza_pdf_comanda
 import tomli
 from pathlib import Path
+import os
 
 st.set_page_config(page_title="Gestiune Comenzi", page_icon="📋", layout="wide")
 
@@ -43,7 +45,7 @@ except:
         "200 x 430 mm": 6
     }
 
-# Definim matricea de compatibilitate (conform PDF-ului)
+# Definim matricea de compatibilitate (conform PDF-ului) - ADĂUGAT 72 x 102
 compatibilitate_hartie_coala = {
     "70 x 100": {
         "330 x 480 mm": 4,
@@ -57,8 +59,7 @@ compatibilitate_hartie_coala = {
         "230 x 250 mm": 12,
         "250 x 350 mm": 8
     },
-
-    "72 x 102": {
+    "72 x 102": {  # NOU ADĂUGAT
         "330 x 480 mm": 4,
         "345 x 330 mm": 6,
         "330 x 700 mm": 3,
@@ -119,6 +120,18 @@ compatibilitate_hartie_coala = {
     }
 }
 
+# Coduri FSC pentru OUTPUT (produsul final)
+coduri_fsc_output = {
+    "P 7.1": "Notebooks",
+    "P 7.5": "Post and greeting cards", 
+    "P 7.6": "Envelopes",
+    "P 7.7": "Gummed paper",
+    "P 7.8": "Adhesive labels",
+    "P 8.4": "Advertising materials",
+    "P 8.5": "Business card",
+    "P 8.6": "Calendars, diaries and organisers"
+}
+
 # Inițializarea sesiunii cu baza de date
 session = get_session()
 
@@ -169,6 +182,7 @@ with tab1:
                 "Dimensiuni": f"{comanda.latime}x{comanda.inaltime}mm",
                 "Nr. Pagini": comanda.nr_pagini,
                 "FSC": "Da" if comanda.fsc else "Nu",
+                "PDF": "Generat" if comanda.pdf_path and os.path.exists(comanda.pdf_path) else "Nu",
                 "Facturată": "Da" if comanda.facturata else "Nu"
             })
         
@@ -211,14 +225,9 @@ with tab2:
         beneficiar_id = next((b.id for b in beneficiari if b.nume == beneficiar_nume), None)
 
     with col2:
-        # Selectare hârtie (în afara formularului!)
+        # Selectare hârtie - doar cele care pot produce FSC dacă e nevoie
         hartii = session.query(Hartie).filter(Hartie.stoc > 0).all()
-        total_stoc_disponibil = sum(h.stoc for h in hartii)
-        # Afișează avertisment dacă sunt prea puține hârtii în stoc
-        if total_stoc_disponibil < 3:
-            st.warning("Stoc hârtie limitat sau indisponibil. Sunt disponibile mai puțin de 3 sortimente.")
-
-        # Dacă nu e niciuna, oprim complet
+        
         if not hartii:
             st.error("Nu există sortimente de hârtie disponibile în stoc.")
             st.stop()
@@ -271,23 +280,20 @@ with tab2:
 
     st.markdown("### FSC")
     fsc = st.checkbox("Lucrare certificată FSC")
-    cod_fsc = certificare_fsc = None
+    cod_fsc_output = certificare_fsc_output = None
+    
     if fsc:
-        coduri_fsc = {
-            "FSC-C008955": "FSC Mix Credit",
-            "FSC-C009851": "FSC Recycled",
-            "FSC-C012344": "FSC Mix Credit",
-            "FSC-C014258": "FSC Mix Credit",
-            "FSC-C015704": "FSC Mix Credit",
-            "FSC-C019919": "FSC Recycled",
-            "FSC-C100141": "FSC Mix Credit"
-        }
-        col1, col2 = st.columns(2)
-        with col1:
-            cod_fsc = st.selectbox("Cod FSC*:", list(coduri_fsc.keys()))
-        with col2:
-            certificare_options = ["FSC Mix Credit", "FSC Recycled", "FSC 100%"]
-            certificare_fsc = st.selectbox("Certificare FSC*:", certificare_options)
+        # Verifică dacă hârtia selectată poate produce FSC
+        if not hartie_selectata.cod_fsc_iesire:
+            st.error(f"Hârtia selectată ({hartie_selectata.sortiment}) nu poate produce produse certificate FSC!")
+            st.info("Selectează o hârtie care are definite codurile FSC pentru ieșire.")
+        else:
+            col1, col2 = st.columns(2)
+            with col1:
+                cod_fsc_output = st.selectbox("Cod FSC Output*:", list(coduri_fsc_output.keys()))
+            with col2:
+                certificare_fsc_output = coduri_fsc_output[cod_fsc_output]
+                st.text_input("Certificare FSC Output:", value=certificare_fsc_output, disabled=True)
 
     st.markdown("### Culori")
     culori_options = ["4 + 4", "4 + 0", "4 + K", "K + K", "K + 0", "0 + 0"]
@@ -310,7 +316,7 @@ with tab2:
         "75 x 105mm", "80 x 111mm", "80 x 120mm", "A6 111 x 154mm",
         "A5 154 x 216mm", "A4 216 x 303mm", "A3 303 x 426mm"
         ]
-        format_laminare = st.selectbox("Format laminare*:", formate_laminare)
+        format_laminare = st.selectbox("Format laminare*:", formate_laminare) if laminare else None
         numar_laminari = st.number_input("Număr laminări:", min_value=1, value=1) if laminare else None
     with col4:
         taiere_cutter = st.checkbox("Tăiere Cutter/Plotter")
@@ -328,55 +334,104 @@ with tab2:
     if coli_mari:
         st.markdown(f"**Coli mari necesare:** `{coli_mari:.2f}`")
 
-    if st.button("Adaugă Comandă"):
-        if nr_pagini % 2 != 0:
+    if st.button("Adaugă Comandă", type="primary"):
+        # Validările îmbunătățite
+        if not lucrare or not descriere_lucrare:
+            st.error("Lucrarea și descrierea lucrării sunt obligatorii!")
+        elif nr_pagini % 2 != 0:
             st.error("Numărul de pagini trebuie să fie multiplu de 2!")
-        elif fsc and (not cod_fsc or not certificare_fsc):
-            st.error("Lipsește Cod/Certificare FSC")
+        elif fsc and (not cod_fsc_output or not certificare_fsc_output):
+            st.error("Lipsește Cod/Certificare FSC Output")
+        elif fsc and not hartie_selectata.cod_fsc_iesire:
+            st.error("Hârtia selectată nu poate produce produse certificate FSC!")
         elif not coale_tipar_compatibile or coala_tipar not in coale_tipar_compatibile:
             st.error("Coală de tipar incompatibilă!")
         else:
             try:
-                comanda = Comanda(
-                    numar_comanda=numar_comanda_nou,
-                    echipament=echipament,
-                    data=data,
-                    beneficiar_id=beneficiar_id,
-                    lucrare=lucrare,
-                    po_client=po_client,
-                    tiraj=tiraj,
-                    descriere_lucrare=descriere_lucrare,
-                    latime=latime,
-                    inaltime=inaltime,
-                    nr_pagini=nr_pagini,
-                    indice_corectie=indice_corectie,
-                    fsc=fsc,
-                    cod_fsc=cod_fsc,
-                    certificare_fsc=certificare_fsc,
-                    hartie_id=hartie_id,
-                    coala_tipar=coala_tipar,
-                    nr_culori=nr_culori,
-                    nr_coli=nr_coli,
-                    coli_mari=coli_mari,
-                    greutate=greutate,
-                    plastifiere=plastifiere,
-                    big=big,
-                    nr_biguri=nr_biguri,
-                    laminare=laminare,
-                    format_laminare=format_laminare,
-                    numar_laminari=numar_laminari,
-                    taiere_cutter=taiere_cutter,
-                    detalii_finisare=detalii_finisare,
-                    detalii_livrare=detalii_livrare,
-                    pret=None,
-                    facturata=False
-                )
-                session.add(comanda)
-                session.commit()
-                st.success(f"Comanda #{numar_comanda_nou} a fost adăugată cu succes!")
+                with st.spinner("Salvez comanda și generez PDF-ul..."):
+                    comanda = Comanda(
+                        numar_comanda=numar_comanda_nou,
+                        echipament=echipament,
+                        data=data,
+                        beneficiar_id=beneficiar_id,
+                        lucrare=lucrare,
+                        po_client=po_client,
+                        tiraj=tiraj,
+                        descriere_lucrare=descriere_lucrare,
+                        latime=latime,
+                        inaltime=inaltime,
+                        nr_pagini=nr_pagini,
+                        indice_corectie=indice_corectie,
+                        fsc=fsc,
+                        cod_fsc_output=cod_fsc_output,
+                        certificare_fsc_output=certificare_fsc_output,
+                        hartie_id=hartie_id,
+                        coala_tipar=coala_tipar,
+                        nr_culori=nr_culori,
+                        nr_coli=nr_coli,
+                        coli_mari=coli_mari,
+                        greutate=greutate,
+                        plastifiere=plastifiere,
+                        big=big,
+                        nr_biguri=nr_biguri,
+                        laminare=laminare,
+                        format_laminare=format_laminare,
+                        numar_laminari=numar_laminari,
+                        taiere_cutter=taiere_cutter,
+                        detalii_finisare=detalii_finisare,
+                        detalii_livrare=detalii_livrare,
+                        pret=None,
+                        facturata=False
+                    )
+                    session.add(comanda)
+                    session.commit()
+                    
+                    # Generează PDF-ul pentru comandă
+                    try:
+                        beneficiar_obj = session.query(Beneficiar).get(beneficiar_id)
+                        hartie_obj = session.query(Hartie).get(hartie_id)
+                        pdf_path = genereaza_pdf_comanda(comanda, beneficiar_obj, hartie_obj)
+                        
+                        # Actualizează calea PDF în comandă
+                        comanda.pdf_path = pdf_path
+                        session.commit()
+                        
+                        st.success(f"✅ Comanda #{numar_comanda_nou} a fost adăugată cu succes!")
+                        st.success(f"📄 PDF-ul a fost generat: {os.path.basename(pdf_path)}")
+                        
+                        # Afișează informații despre comandă
+                        st.info(f"""
+                        **Detalii Comandă Adăugată:**
+                        - Număr: #{numar_comanda_nou}
+                        - Beneficiar: {beneficiar_nume}
+                        - Lucrare: {lucrare}
+                        - Tiraj: {tiraj:,} exemplare
+                        - PDF generat: {os.path.basename(pdf_path)}
+                        """)
+                        
+                        # Buton prominent pentru descărcare PDF
+                        if os.path.exists(pdf_path):
+                            with open(pdf_path, "rb") as pdf_file:
+                                st.download_button(
+                                    label=f"📄 Descarcă PDF Comandă #{numar_comanda_nou}",
+                                    data=pdf_file.read(),
+                                    file_name=f"{numar_comanda_nou}.pdf",
+                                    mime="application/pdf",
+                                    type="primary",
+                                    use_container_width=True
+                                )
+                        
+                        # Afișează un link către PDF pentru deschidere directă (opțional)
+                        st.success("🎉 Comanda a fost salvată și PDF-ul este gata pentru descărcare!")
+                        
+                    except Exception as pdf_error:
+                        st.warning(f"⚠️ Comanda a fost salvată, dar a apărut o eroare la generarea PDF-ului: {pdf_error}")
+                        st.info("Poți genera PDF-ul din secțiunea de editare comenzi.")
+                        
             except Exception as e:
                 session.rollback()
-                st.error(f"Eroare la adăugare: {e}")
+                st.error(f"❌ Eroare la adăugare: {e}")
+
 with tab3:
     st.markdown("""
         <style>
@@ -407,6 +462,33 @@ with tab3:
             readonly = comanda.facturata
             if readonly:
                 st.warning("⚠️ Această comandă este deja facturată și nu poate fi modificată. Poți doar să o vizualizezi.")
+
+            # Buton pentru descărcare PDF (dacă există)
+            if comanda.pdf_path and os.path.exists(comanda.pdf_path):
+                with open(comanda.pdf_path, "rb") as pdf_file:
+                    st.download_button(
+                        label="📄 Descarcă PDF Comandă",
+                        data=pdf_file.read(),
+                        file_name=f"{comanda.numar_comanda}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+            else:
+                # Buton pentru generare PDF dacă nu există
+                if st.button("🔄 Generează PDF pentru această comandă"):
+                    try:
+                        beneficiar_obj = session.query(Beneficiar).get(comanda.beneficiar_id)
+                        hartie_obj = session.query(Hartie).get(comanda.hartie_id)
+                        pdf_path = genereaza_pdf_comanda(comanda, beneficiar_obj, hartie_obj)
+                        
+                        # Actualizează calea PDF în comandă
+                        comanda.pdf_path = pdf_path
+                        session.commit()
+                        
+                        st.success("PDF generat cu succes!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Eroare la generarea PDF: {e}")
 
             with st.form("edit_comanda_form"):
                 st.markdown("### Informații generale")
@@ -446,24 +528,15 @@ with tab3:
                     indice_corectie = st.number_input("Indice de corecție:", min_value=0.1, max_value=1.0, value=float(comanda.indice_corectie), step=0.01, disabled=readonly, key="indice_tab3")
 
                 fsc = st.checkbox("Lucrare certificată FSC", value=comanda.fsc, disabled=readonly, key="fsc_checkbox_tab3")
-                cod_fsc = certificare_fsc = None
+                cod_fsc_output = certificare_fsc_output = None
                 if fsc:
-                    coduri_fsc = {
-                        "FSC-C008955": "FSC Mix Credit",
-                        "FSC-C009851": "FSC Recycled",
-                        "FSC-C012344": "FSC Mix Credit",
-                        "FSC-C014258": "FSC Mix Credit",
-                        "FSC-C015704": "FSC Mix Credit",
-                        "FSC-C019919": "FSC Recycled",
-                        "FSC-C100141": "FSC Mix Credit"
-                    }
                     col1, col2 = st.columns(2)
                     with col1:
-                        cod_fsc_index = list(coduri_fsc.keys()).index(comanda.cod_fsc) if comanda.cod_fsc in coduri_fsc else 0
-                        cod_fsc = st.selectbox("Cod FSC*:", list(coduri_fsc.keys()), index=cod_fsc_index, disabled=readonly, key="cod_fsc_tab3")
+                        cod_fsc_output_index = list(coduri_fsc_output.keys()).index(comanda.cod_fsc_output) if comanda.cod_fsc_output in coduri_fsc_output else 0
+                        cod_fsc_output = st.selectbox("Cod FSC Output*:", list(coduri_fsc_output.keys()), index=cod_fsc_output_index, disabled=readonly, key="cod_fsc_output_tab3")
                     with col2:
-                        certificare_fsc = coduri_fsc[cod_fsc]
-                        st.text_input("Certificare FSC:", value=certificare_fsc, disabled=True, key="certificare_tab3")
+                        certificare_fsc_output = coduri_fsc_output[cod_fsc_output]
+                        st.text_input("Certificare FSC Output:", value=certificare_fsc_output, disabled=True, key="certificare_output_tab3")
 
                 st.markdown("### Hârtie și tipar")
                 hartii = session.query(Hartie).all()
@@ -502,18 +575,39 @@ with tab3:
                     nr_biguri = st.number_input("Număr biguri:", min_value=1, value=int(comanda.nr_biguri or 2), disabled=readonly, key="nr_biguri_tab3") if big else None
                 with col2:
                     laminare = st.checkbox("Laminare", value=comanda.laminare, disabled=readonly, key="laminare_tab3")
-                    formate_laminare = [
-                    "54 x 86mm", "60 x 90mm", "60 x 95mm", "65 x 95mm",
-                    "75 x 105mm", "80 x 111mm", "80 x 120mm", "A6 111 x 154mm",
-                    "A5 154 x 216mm", "A4 216 x 303mm", "A3 303 x 426mm"
-                    ]
-                    format_laminare = st.selectbox("Format laminare*:", formate_laminare)
-                    numar_laminari = st.number_input("Număr laminări:", min_value=1, value=int(comanda.numar_laminari or 1), disabled=readonly, key="numar_laminari_tab3") if laminare else None
+                    if laminare:
+                        formate_laminare = [
+                            "54 x 86mm", "60 x 90mm", "60 x 95mm", "65 x 95mm",
+                            "75 x 105mm", "80 x 111mm", "80 x 120mm", "A6 111 x 154mm",
+                            "A5 154 x 216mm", "A4 216 x 303mm", "A3 303 x 426mm"
+                        ]
+                        # Găsește indexul valorii existente
+                        format_laminare_index = 0
+                        if comanda.format_laminare and comanda.format_laminare in formate_laminare:
+                            format_laminare_index = formate_laminare.index(comanda.format_laminare)
+                        
+                        format_laminare = st.selectbox(
+                            "Format laminare*:", 
+                            formate_laminare, 
+                            index=format_laminare_index, 
+                            disabled=readonly, 
+                            key="format_laminare_tab3"
+                        )
+                        numar_laminari = st.number_input(
+                            "Număr laminări:", 
+                            min_value=1, 
+                            value=int(comanda.numar_laminari or 1), 
+                            disabled=readonly, 
+                            key="numar_laminari_tab3"
+                        )
+                    else:
+                        format_laminare = None
+                        numar_laminari = None
 
                 taiere_cutter = st.checkbox("Tăiere Cutter/Plotter", value=comanda.taiere_cutter, disabled=readonly, key="taiere_tab3")
 
-                st.text_area("Detalii finisare:", value=comanda.detalii_finisare or "", height=80, disabled=readonly, key="detalii_finisare_tab3")
-                st.text_area("Detalii livrare:", value=comanda.detalii_livrare or "", height=80, disabled=readonly, key="detalii_livrare_tab3")
+                detalii_finisare = st.text_area("Detalii finisare:", value=comanda.detalii_finisare or "", height=80, disabled=readonly, key="detalii_finisare_tab3")
+                detalii_livrare = st.text_area("Detalii livrare:", value=comanda.detalii_livrare or "", height=80, disabled=readonly, key="detalii_livrare_tab3")
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -522,44 +616,73 @@ with tab3:
                     delete_button = st.form_submit_button("Șterge comanda", disabled=readonly)
 
                 if update_button and not readonly:
-                    try:
-                        comanda.echipament = echipament
-                        comanda.data = data
-                        comanda.beneficiar_id = beneficiar_id
-                        comanda.lucrare = lucrare
-                        comanda.po_client = po_client
-                        comanda.tiraj = tiraj
-                        comanda.descriere_lucrare = descriere_lucrare
-                        comanda.latime = latime
-                        comanda.inaltime = inaltime
-                        comanda.nr_pagini = nr_pagini
-                        comanda.indice_corectie = indice_corectie
-                        comanda.fsc = fsc
-                        comanda.cod_fsc = cod_fsc
-                        comanda.certificare_fsc = certificare_fsc
-                        comanda.hartie_id = hartie_id
-                        comanda.coala_tipar = coala_tipar
-                        comanda.nr_culori = nr_culori
-                        comanda.nr_coli = nr_coli
-                        comanda.coli_mari = coli_mari
-                        comanda.greutate = greutate
-                        comanda.plastifiere = plastifiere
-                        comanda.big = big
-                        comanda.nr_biguri = nr_biguri
-                        comanda.laminare = laminare
-                        comanda.format_laminare = format_laminare
-                        comanda.numar_laminari = numar_laminari
-                        comanda.taiere_cutter = taiere_cutter
-                        comanda.detalii_finisare = comanda.detalii_finisare
-                        comanda.detalii_livrare = comanda.detalii_livrare
-                        session.commit()
-                        st.success(f"Comanda #{comanda.numar_comanda} a fost actualizată cu succes!")
-                    except Exception as e:
-                        session.rollback()
-                        st.error(f"Eroare la actualizare: {e}")
+                    # Validări îmbunătățite
+                    if not lucrare or not descriere_lucrare:
+                        st.error("Lucrarea și descrierea lucrării sunt obligatorii!")
+                    elif nr_pagini % 2 != 0:
+                        st.error("Numărul de pagini trebuie să fie multiplu de 2!")
+                    elif fsc and (not cod_fsc_output or not certificare_fsc_output):
+                        st.error("Pentru lucrarile FSC, Cod FSC Output și Certificare FSC Output sunt obligatorii!")
+                    else:
+                        try:
+                            # Update complet al comenzii
+                            comanda.echipament = echipament
+                            comanda.data = data
+                            comanda.beneficiar_id = beneficiar_id
+                            comanda.lucrare = lucrare
+                            comanda.po_client = po_client
+                            comanda.tiraj = tiraj
+                            comanda.descriere_lucrare = descriere_lucrare
+                            comanda.latime = latime
+                            comanda.inaltime = inaltime
+                            comanda.nr_pagini = nr_pagini
+                            comanda.indice_corectie = indice_corectie
+                            comanda.fsc = fsc
+                            comanda.cod_fsc_output = cod_fsc_output
+                            comanda.certificare_fsc_output = certificare_fsc_output
+                            comanda.hartie_id = hartie_id
+                            comanda.coala_tipar = coala_tipar
+                            comanda.nr_culori = nr_culori
+                            comanda.nr_coli = nr_coli
+                            comanda.coli_mari = coli_mari
+                            comanda.greutate = greutate
+                            comanda.plastifiere = plastifiere
+                            comanda.big = big
+                            comanda.nr_biguri = nr_biguri
+                            comanda.laminare = laminare
+                            comanda.format_laminare = format_laminare
+                            comanda.numar_laminari = numar_laminari
+                            comanda.taiere_cutter = taiere_cutter
+                            comanda.detalii_finisare = detalii_finisare
+                            comanda.detalii_livrare = detalii_livrare
+
+                            session.commit()
+                            st.success(f"Comanda #{comanda.numar_comanda} a fost actualizată cu succes!")
+                            
+                            # Regenerează PDF-ul dacă comanda a fost modificată
+                            try:
+                                beneficiar_obj = session.query(Beneficiar).get(comanda.beneficiar_id)
+                                hartie_obj = session.query(Hartie).get(comanda.hartie_id)
+                                pdf_path = genereaza_pdf_comanda(comanda, beneficiar_obj, hartie_obj)
+                                
+                                # Actualizează calea PDF în comandă
+                                comanda.pdf_path = pdf_path
+                                session.commit()
+                                
+                                st.success("PDF-ul a fost regenerat cu datele actualizate!")
+                            except Exception as pdf_error:
+                                st.warning(f"Comanda a fost actualizată, dar PDF-ul nu a putut fi regenerat: {pdf_error}")
+                                
+                        except Exception as e:
+                            session.rollback()
+                            st.error(f"Eroare la actualizare: {e}")
 
                 if delete_button and not readonly:
                     try:
+                        # Șterge și fișierul PDF dacă există
+                        if comanda.pdf_path and os.path.exists(comanda.pdf_path):
+                            os.remove(comanda.pdf_path)
+                        
                         session.delete(comanda)
                         session.commit()
                         st.success(f"Comanda #{comanda.numar_comanda} a fost ștearsă cu succes!")
@@ -571,5 +694,4 @@ with tab3:
     except Exception as e:
         st.error(f"Eroare în tabul 3: {e}")
 
-    session.close()
-
+session.close()
