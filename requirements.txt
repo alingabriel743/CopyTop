@@ -21,3 +21,4 @@ reportlab==4.0.7
 python-dotenv==1.0.0
 pydantic==2.5.2
 tomli==2.0.1  # Pentru Python < 3.11
+psycopg2
