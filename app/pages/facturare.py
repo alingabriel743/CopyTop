@@ -121,12 +121,12 @@ else:
             "ID": comanda.id,
             "Nr. Comandă": comanda.numar_comanda,
             "Data": comanda.data.strftime("%d-%m-%Y"),
-            "Lucrare": comanda.lucrare,
+            "Nume Lucrare": comanda.nume_lucrare,  # CORECTAT: nume_lucrare în loc de lucrare
             "Tiraj": comanda.tiraj,
             "PO Client": comanda.po_client if comanda.po_client else "-",
-            "FSC": "Da" if comanda.fsc else "Nu", 
-            "Cod FSC": comanda.cod_fsc if comanda.cod_fsc else "-",
-            "Certificare FSC": comanda.certificare_fsc if comanda.certificare_fsc else "-",
+            "FSC Produs": "Da" if comanda.certificare_fsc_produs else "Nu",  # CORECTAT: certificare_fsc_produs
+            "Cod FSC": comanda.cod_fsc_produs if comanda.cod_fsc_produs else "-",  # CORECTAT: cod_fsc_produs
+            "Tip FSC": comanda.tip_certificare_fsc_produs if comanda.tip_certificare_fsc_produs else "-",  # CORECTAT
             "Preț": f"{comanda.pret:.2f} RON" if comanda.pret else "-",
             "Facturată": "Da" if comanda.facturata else "Nu"
         }
@@ -143,7 +143,7 @@ else:
     if not comenzi_nefacturate:
         st.success("Toate comenzile acestui beneficiar sunt facturate!")
     else:
-        comanda_options = [f"#{c.numar_comanda} - {c.lucrare}" for c in comenzi_nefacturate]
+        comanda_options = [f"#{c.numar_comanda} - {c.nume_lucrare}" for c in comenzi_nefacturate]  # CORECTAT
         selected_comanda = st.selectbox("Selectează comanda de facturat:", comanda_options)
         
         if selected_comanda:
@@ -157,25 +157,26 @@ else:
                     with col1:
                         st.write(f"**Număr comandă:** #{comanda.numar_comanda}")
                         st.write(f"**Beneficiar:** {selected_beneficiar}")
-                        st.write(f"**Lucrare:** {comanda.lucrare}")
+                        st.write(f"**Nume lucrare:** {comanda.nume_lucrare}")  # CORECTAT
                     
                     with col2:
                         st.write(f"**Tiraj:** {comanda.tiraj}")
+                        st.write(f"**Ex/coală:** {comanda.ex_pe_coala}")  # NOU
                         st.write(f"**PO Client:** {comanda.po_client if comanda.po_client else '-'}")
                     
                     with col3:
-                        st.write(f"**FSC:** {'Da' if comanda.fsc else 'Nu'}")
-                        if comanda.fsc:
-                            st.write(f"**Cod FSC:** {comanda.cod_fsc}")
-                            st.write(f"**Certificare FSC:** {comanda.certificare_fsc}")
+                        st.write(f"**FSC Produs:** {'Da' if comanda.certificare_fsc_produs else 'Nu'}")  # CORECTAT
+                        if comanda.certificare_fsc_produs:  # CORECTAT
+                            st.write(f"**Cod FSC:** {comanda.cod_fsc_produs}")  # CORECTAT
+                            st.write(f"**Tip FSC:** {comanda.tip_certificare_fsc_produs}")  # CORECTAT
                     
                     # Introduceți prețul pentru comandă
                     pret = st.number_input("Preț (RON):", min_value=0.0, value=comanda.pret if comanda.pret else 0.0, step=10.0)
                     
-                    # Calculare consum de hârtie
-                    if comanda.nr_coli and comanda.nr_coli > 0:
+                    # Calculare consum de hârtie folosind noua logică
+                    if comanda.total_coli and comanda.total_coli > 0:  # CORECTAT: folosește total_coli
                         indice_coala = indici_coala.get(comanda.coala_tipar, 1)
-                        consum_hartie = comanda.nr_coli / indice_coala
+                        consum_hartie = comanda.total_coli / indice_coala  # CORECTAT: folosește total_coli
                         hartie = session.query(Hartie).get(comanda.hartie_id)
                         
                         if hartie:
@@ -184,11 +185,12 @@ else:
                                 stoc_sufficient = False
                             else:
                                 stoc_sufficient = True
+                                st.info(f"📊 Consum hârtie: {consum_hartie:.2f} coli din {hartie.stoc} disponibile")
                         else:
                             st.error("⚠️ Hârtia asociată comenzii nu a fost găsită în baza de date!")
                             stoc_sufficient = False
                     else:
-                        st.warning("Numărul de coli nu este specificat pentru această comandă. Nu se poate calcula consumul de hârtie.")
+                        st.warning("Total coli nu este specificat pentru această comandă. Nu se poate calcula consumul de hârtie.")
                         stoc_sufficient = True  # Permitem facturarea chiar dacă nu putem calcula consumul
                         consum_hartie = 0
                         hartie = session.query(Hartie).get(comanda.hartie_id)
@@ -213,7 +215,7 @@ else:
                                 
                                 session.commit()
                                 st.success(f"Comanda #{comanda.numar_comanda} a fost facturată cu succes! Stocul a fost actualizat.")
-                                st.experimental_rerun()
+                                st.rerun()
                             except Exception as e:
                                 session.rollback()
                                 st.error(f"Eroare la facturarea comenzii: {e}")
@@ -259,7 +261,7 @@ if comenzi_facturate:
             "Data Facturare": comanda.data.strftime("%d-%m-%Y"),
             "Nr. Comandă": comanda.numar_comanda,
             "Beneficiar": comanda.beneficiar.nume,
-            "Lucrare": comanda.lucrare,
+            "Nume Lucrare": comanda.nume_lucrare,  # CORECTAT
             "PO Client": comanda.po_client if comanda.po_client else "-",
             "Tiraj": comanda.tiraj,
             "Preț": f"{comanda.pret:.2f} RON" if comanda.pret else "-"

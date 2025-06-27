@@ -4,13 +4,12 @@ import pandas as pd
 import numpy as np
 from models import get_session
 from models.hartie import Hartie
-import tomli
-from pathlib import Path
+from constants import CODURI_FSC_MATERIE_PRIMA, CERTIFICARI_FSC_MATERIE_PRIMA
 
-# Încărcare date despre formate (ADĂUGAT 72 x 102)
+# Încărcare date despre formate
 formate_hartie = {
     "70 x 100": [70, 100],
-    "72 x 102": [72, 102],  # NOU ADĂUGAT
+    "72 x 102": [72, 102],
     "45 x 64": [45, 64],
     "SRA3": [32, 45],
     "50 x 70": [50, 70],
@@ -19,27 +18,6 @@ formate_hartie = {
     "61 x 86": [61, 86],
     "A3": [29.7, 42],
     "43 x 61": [43, 61]
-}
-
-# Coduri FSC pentru INTRARE (materia prima - coloana din stânga)
-coduri_fsc_intrare = {
-    "FSC-C008955": ["FSC Mix Credit", "FSC Recycled Credit", "FSC Reciclat 100%", "FSC Mix Credit 90%"],
-    "FSC-C009851": ["FSC Mix Credit", "FSC Recycled Credit", "FSC Reciclat 100%", "FSC Mix Credit 90%"],
-    "FSC-C012344": ["FSC Mix Credit", "FSC Recycled Credit", "FSC Reciclat 100%", "FSC Mix Credit 90%"],
-    "FSC-C014258": ["FSC Mix Credit", "FSC Recycled Credit", "FSC Reciclat 100%", "FSC Mix Credit 90%"],
-    "FSC-C019919": ["FSC Mix Credit", "FSC Recycled Credit", "FSC Reciclat 100%", "FSC Mix Credit 90%"]
-}
-
-# Coduri FSC pentru IEȘIRE (produsul final - coloana din dreapta)
-coduri_fsc_iesire = {
-    "P 7.1": "Notebooks",
-    "P 7.5": "Post and greeting cards", 
-    "P 7.6": "Envelopes",
-    "P 7.7": "Gummed paper",
-    "P 7.8": "Adhesive labels",
-    "P 8.4": "Advertising materials",
-    "P 8.5": "Business card",
-    "P 8.6": "Calendars, diaries and organisers"
 }
 
 st.set_page_config(page_title="Gestiune Hârtie", page_icon="📄")
@@ -71,7 +49,7 @@ with tab1:
     if hartii:
         data = []
         for hartie in hartii:
-            certificare = "Da" if hartie.cod_fsc_intrare else "Nu"
+            certificare = "Da" if hartie.fsc_materie_prima else "Nu"
             data.append({
                 "ID": hartie.id,
                 "Sortiment": hartie.sortiment,
@@ -80,11 +58,9 @@ with tab1:
                 "Format": hartie.format_hartie,
                 "Stoc": f"{int(hartie.stoc) if hartie.stoc.is_integer() else hartie.stoc} coli",
                 "Greutate": f"{hartie.greutate:.2f} kg",
-                "Certificat FSC": certificare,
-                "Cod FSC Intrare": hartie.cod_fsc_intrare or "-",
-                "Certificare Intrare": hartie.certificare_fsc_intrare or "-",
-                "Cod FSC Ieșire": hartie.cod_fsc_iesire or "-",
-                "Certificare Ieșire": hartie.certificare_fsc_iesire or "-"
+                "FSC Materie Primă": certificare,
+                "Cod FSC": hartie.cod_fsc_materie_prima or "-",
+                "Certificare": hartie.certificare_fsc_materie_prima or "-"
             })
         
         # Afișare tabel
@@ -117,35 +93,21 @@ with tab2:
             gramaj = st.number_input("Gramaj (g/m²)*:", min_value=1, value=80)
             stoc = st.number_input("Stoc (coli)*:", min_value=0.0, value=0.0, step=1.0)
 
-        # Certificare FSC INTRARE (materia prima)
-        st.markdown("### Certificare FSC Materia Prima (Intrare)")
-        has_fsc_intrare = st.checkbox("Hârtie certificată FSC (Materia Prima)")
         
-        if has_fsc_intrare:
+        # Certificare FSC materie primă
+        st.markdown("### Certificare FSC Materie Primă")
+        has_fsc = st.checkbox("Hârtie certificată FSC (materie primă)")
+        
+        if has_fsc:
             col1, col2 = st.columns(2)
             with col1:
-                cod_fsc_intrare = st.selectbox("Cod FSC Intrare*:", list(coduri_fsc_intrare.keys()))
+                cod_fsc = st.selectbox("Cod FSC materie primă*:", list(CODURI_FSC_MATERIE_PRIMA.keys()))
+                st.info(f"Descriere: {CODURI_FSC_MATERIE_PRIMA[cod_fsc]}")
             with col2:
-                certificari_disponibile = coduri_fsc_intrare[cod_fsc_intrare]
-                certificare_fsc_intrare = st.selectbox("Certificare FSC Intrare*:", certificari_disponibile)
+                certificare_fsc = st.selectbox("Certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA)
         else:
-            cod_fsc_intrare = None
-            certificare_fsc_intrare = None
-
-        # Certificare FSC IEȘIRE (produsul final)
-        st.markdown("### Certificare FSC Produs Final (Ieșire)")
-        has_fsc_iesire = st.checkbox("Poate produce produse certificate FSC")
-        
-        if has_fsc_iesire:
-            col1, col2 = st.columns(2)
-            with col1:
-                cod_fsc_iesire = st.selectbox("Cod FSC Ieșire*:", list(coduri_fsc_iesire.keys()))
-            with col2:
-                certificare_fsc_iesire = coduri_fsc_iesire[cod_fsc_iesire]
-                st.text_input("Certificare FSC Ieșire:", value=certificare_fsc_iesire, disabled=True)
-        else:
-            cod_fsc_iesire = None
-            certificare_fsc_iesire = None
+            cod_fsc = None
+            certificare_fsc = None
         
         # Calculare greutate
         greutate = dimensiune_1 * dimensiune_2 * gramaj * stoc / 10**7
@@ -157,10 +119,8 @@ with tab2:
             # Validare date
             if not sortiment or gramaj <= 0:
                 st.error("Completează toate câmpurile obligatorii!")
-            elif has_fsc_intrare and (not cod_fsc_intrare or not certificare_fsc_intrare):
-                st.error("Pentru hârtie certificată FSC intrare, trebuie completate Cod FSC și Certificare FSC!")
-            elif has_fsc_iesire and not cod_fsc_iesire:
-                st.error("Pentru produse certificate FSC ieșire, trebuie completat Cod FSC Ieșire!")
+            elif has_fsc and (not cod_fsc or not certificare_fsc):
+                st.error("Pentru hârtie certificată FSC, trebuie completate Cod FSC și Certificare FSC!")
             else:
                 # Adăugare în baza de date
                 try:
@@ -172,10 +132,9 @@ with tab2:
                         format_hartie=format_hartie,
                         stoc=stoc,
                         greutate=greutate,
-                        cod_fsc_intrare=cod_fsc_intrare,
-                        certificare_fsc_intrare=certificare_fsc_intrare,
-                        cod_fsc_iesire=cod_fsc_iesire,
-                        certificare_fsc_iesire=certificare_fsc_iesire
+                        fsc_materie_prima=has_fsc,
+                        cod_fsc_materie_prima=cod_fsc,
+                        certificare_fsc_materie_prima=certificare_fsc
                     )
                     session.add(hartie)
                     session.commit()
@@ -215,38 +174,23 @@ with tab3:
                     gramaj = st.number_input("Gramaj (g/m²)*:", min_value=1, value=int(hartie.gramaj))
                     stoc = st.number_input("Stoc (coli)*:", min_value=0.0, value=float(hartie.stoc), step=1.0)
 
-                # Certificare FSC INTRARE 
-                st.markdown("### Certificare FSC Materia Prima (Intrare)")
-                has_fsc_intrare = st.checkbox("Hârtie certificată FSC (Materia Prima)", value=True if hartie.cod_fsc_intrare else False)
                 
-                if has_fsc_intrare:
+                # Certificare FSC materie primă
+                st.markdown("### Certificare FSC Materie Primă")
+                has_fsc = st.checkbox("Hârtie certificată FSC (materie primă)", value=hartie.fsc_materie_prima)
+                
+                if has_fsc:
                     col1, col2 = st.columns(2)
                     with col1:
-                        cod_fsc_intrare_index = list(coduri_fsc_intrare.keys()).index(hartie.cod_fsc_intrare) if hartie.cod_fsc_intrare in coduri_fsc_intrare else 0
-                        cod_fsc_intrare = st.selectbox("Cod FSC Intrare*:", list(coduri_fsc_intrare.keys()), index=cod_fsc_intrare_index)
+                        cod_fsc_index = list(CODURI_FSC_MATERIE_PRIMA.keys()).index(hartie.cod_fsc_materie_prima) if hartie.cod_fsc_materie_prima in CODURI_FSC_MATERIE_PRIMA else 0
+                        cod_fsc = st.selectbox("Cod FSC materie primă*:", list(CODURI_FSC_MATERIE_PRIMA.keys()), index=cod_fsc_index)
+                        st.info(f"Descriere: {CODURI_FSC_MATERIE_PRIMA[cod_fsc]}")
                     with col2:
-                        certificari_disponibile = coduri_fsc_intrare[cod_fsc_intrare]
-                        certificare_index = certificari_disponibile.index(hartie.certificare_fsc_intrare) if hartie.certificare_fsc_intrare in certificari_disponibile else 0
-                        certificare_fsc_intrare = st.selectbox("Certificare FSC Intrare*:", certificari_disponibile, index=certificare_index)
+                        certificare_index = CERTIFICARI_FSC_MATERIE_PRIMA.index(hartie.certificare_fsc_materie_prima) if hartie.certificare_fsc_materie_prima in CERTIFICARI_FSC_MATERIE_PRIMA else 0
+                        certificare_fsc = st.selectbox("Certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA, index=certificare_index)
                 else:
-                    cod_fsc_intrare = None
-                    certificare_fsc_intrare = None
-
-                # Certificare FSC IEȘIRE
-                st.markdown("### Certificare FSC Produs Final (Ieșire)")
-                has_fsc_iesire = st.checkbox("Poate produce produse certificate FSC", value=True if hartie.cod_fsc_iesire else False)
-                
-                if has_fsc_iesire:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        cod_fsc_iesire_index = list(coduri_fsc_iesire.keys()).index(hartie.cod_fsc_iesire) if hartie.cod_fsc_iesire in coduri_fsc_iesire else 0
-                        cod_fsc_iesire = st.selectbox("Cod FSC Ieșire*:", list(coduri_fsc_iesire.keys()), index=cod_fsc_iesire_index)
-                    with col2:
-                        certificare_fsc_iesire = coduri_fsc_iesire[cod_fsc_iesire]
-                        st.text_input("Certificare FSC Ieșire:", value=certificare_fsc_iesire, disabled=True)
-                else:
-                    cod_fsc_iesire = None
-                    certificare_fsc_iesire = None
+                    cod_fsc = None
+                    certificare_fsc = None
                 
                 # Calculare greutate
                 greutate = dimensiune_1 * dimensiune_2 * gramaj * stoc / 10**7
@@ -262,10 +206,8 @@ with tab3:
                     # Validare date
                     if not sortiment or gramaj <= 0:
                         st.error("Completează toate câmpurile obligatorii!")
-                    elif has_fsc_intrare and (not cod_fsc_intrare or not certificare_fsc_intrare):
-                        st.error("Pentru hârtie certificată FSC intrare, trebuie completate Cod FSC și Certificare FSC!")
-                    elif has_fsc_iesire and not cod_fsc_iesire:
-                        st.error("Pentru produse certificate FSC ieșire, trebuie completat Cod FSC Ieșire!")
+                    elif has_fsc and (not cod_fsc or not certificare_fsc):
+                        st.error("Pentru hârtie certificată FSC, trebuie completate Cod FSC și Certificare FSC!")
                     else:
                         # Actualizare în baza de date
                         try:
@@ -276,10 +218,9 @@ with tab3:
                             hartie.format_hartie = format_hartie
                             hartie.stoc = stoc
                             hartie.greutate = greutate
-                            hartie.cod_fsc_intrare = cod_fsc_intrare
-                            hartie.certificare_fsc_intrare = certificare_fsc_intrare
-                            hartie.cod_fsc_iesire = cod_fsc_iesire
-                            hartie.certificare_fsc_iesire = certificare_fsc_iesire
+                            hartie.fsc_materie_prima = has_fsc
+                            hartie.cod_fsc_materie_prima = cod_fsc
+                            hartie.certificare_fsc_materie_prima = certificare_fsc
                             
                             session.commit()
                             st.success(f"Sortimentul de hârtie '{sortiment}' a fost actualizat cu succes!")

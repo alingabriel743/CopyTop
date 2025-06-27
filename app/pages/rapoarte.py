@@ -66,10 +66,11 @@ with tab1:
                 }
             
             for comanda in comenzi:
-                if comanda.nr_coli and comanda.nr_coli > 0 and comanda.coala_tipar in indici_coala:
+                # CORECTAT: folosește total_coli în loc de nr_coli
+                if comanda.total_coli and comanda.total_coli > 0 and comanda.coala_tipar in indici_coala:
                     hartie = session.query(Hartie).get(comanda.hartie_id)
                     if hartie:
-                        consum = comanda.nr_coli / indici_coala[comanda.coala_tipar]
+                        consum = comanda.total_coli / indici_coala[comanda.coala_tipar]
                         
                         key = f"{hartie.sortiment} ({hartie.format_hartie}, {hartie.gramaj}g)"
                         if key in hartii_consumate:
@@ -141,10 +142,10 @@ with tab1:
                                         "Nr. Comandă": cmd.numar_comanda,
                                         "Data": cmd.data.strftime("%d-%m-%Y"),
                                         "Beneficiar": session.query(Beneficiar).get(cmd.beneficiar_id).nume,
-                                        "Lucrare": cmd.lucrare,
+                                        "Nume Lucrare": cmd.nume_lucrare,  # CORECTAT
                                         "Coală Tipar": cmd.coala_tipar,
-                                        "Nr. Coli": cmd.nr_coli,
-                                        "Consum Efectiv": cmd.nr_coli / indici_coala[cmd.coala_tipar] if cmd.coala_tipar in indici_coala else 0
+                                        "Total Coli": cmd.total_coli,  # CORECTAT
+                                        "Consum Efectiv": cmd.total_coli / indici_coala[cmd.coala_tipar] if cmd.coala_tipar in indici_coala else 0  # CORECTAT
                                     })
                                 
                                 df_comenzi = pd.DataFrame(comenzi_data)
@@ -209,10 +210,12 @@ with tab2:
                 "Nr. Comandă": comanda.numar_comanda,
                 "Data": comanda.data.strftime("%d-%m-%Y"),
                 "Beneficiar": comanda.beneficiar.nume,
-                "Lucrare": comanda.lucrare,
+                "Nume Lucrare": comanda.nume_lucrare,  # CORECTAT
                 "Tiraj": comanda.tiraj,
                 "Hârtie": comanda.hartie.sortiment,
                 "Nr. Pagini": comanda.nr_pagini,
+                "Ex/Coală": comanda.ex_pe_coala,  # NOU
+                "Total Coli": comanda.total_coli or "-",  # NOU
                 "Preț": f"{comanda.pret:.2f} RON" if comanda.pret else "-",
                 "Status": "Facturată" if comanda.facturata else "Nefacturată"
             })
@@ -242,6 +245,7 @@ with tab2:
             df_viz = pd.DataFrame(list(comenzi_per_beneficiar.items()), columns=["Beneficiar", "Număr comenzi"])
             fig = px.bar(df_viz, x="Beneficiar", y="Număr comenzi", title="Comenzi pe beneficiari")
             st.plotly_chart(fig, use_container_width=True)
+
 # Tab3 - raport stoc
 with tab3:
     st.subheader("Raport stoc hârtie")
@@ -256,7 +260,8 @@ with tab3:
                 "Sortiment": h.sortiment,
                 "Format": h.format_hartie,
                 "Gramaj": h.gramaj,
-                "Cod FSC": h.cod_fsc or "-",
+                "FSC Materie Primă": "Da" if h.fsc_materie_prima else "Nu",  # CORECTAT
+                "Cod FSC": h.cod_fsc_materie_prima or "-",  # CORECTAT
                 "Stoc (coli)": round(h.stoc, 2),
                 "Greutate totală (kg)": round(h.greutate or 0.0, 2)
             })

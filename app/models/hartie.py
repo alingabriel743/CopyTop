@@ -15,13 +15,10 @@ class Hartie(Base):
     stoc = Column(Float, nullable=False, default=0)
     greutate = Column(Float, nullable=False)  # kg - calculat automat
     
-    # Coduri FSC pentru materia prima (intrare)
-    cod_fsc_intrare = Column(String(50), nullable=True)  # Pentru materia prima
-    certificare_fsc_intrare = Column(String(50), nullable=True)  # Pentru materia prima
-    
-    # Coduri FSC pentru produsul final (ieșire/comenzi)
-    cod_fsc_iesire = Column(String(50), nullable=True)  # Pentru comenzi/facturare
-    certificare_fsc_iesire = Column(String(50), nullable=True)  # Pentru comenzi/facturare
+    # Certificare FSC materie primă (Input Product Type)
+    fsc_materie_prima = Column(Boolean, nullable=False, default=False)
+    cod_fsc_materie_prima = Column(String(50), nullable=True)  # P 2.1, P 2.4.9, etc.
+    certificare_fsc_materie_prima = Column(String(50), nullable=True)  # FSC Mix Credit, FSC Recycled, etc.
     
     # Relații
     intrari_stoc = relationship("Stoc", back_populates="hartie")
