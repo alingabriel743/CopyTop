@@ -11,6 +11,7 @@ class Stoc(Base):
     hartie_id = Column(Integer, ForeignKey('hartie.id'), nullable=False)
     cantitate = Column(Float, nullable=False)
     nr_factura = Column(String(50), nullable=False)
+    furnizor = Column(String(100), nullable=False)
     data = Column(Date, nullable=False, default=datetime.now().date)
     
     # Relații

@@ -77,8 +77,22 @@ with tab1:
 with tab2:
     # Cod pentru adăugare hârtie
     st.subheader("Adaugă Sortiment de Hârtie Nou")
+    # Certificare FSC materie primă - ÎN AFARA formularului pentru a fi dinamic
+    st.markdown("### Certificare FSC Materie Primă")
+    has_fsc = st.checkbox("Hârtie certificată FSC (materie primă)")
     
-    # Formular pentru hârtie
+    cod_fsc = None
+    certificare_fsc = None
+    
+    if has_fsc:
+        col1, col2 = st.columns(2)
+        with col1:
+            cod_fsc = st.selectbox("Cod FSC materie primă*:", list(CODURI_FSC_MATERIE_PRIMA.keys()), key="cod_fsc_add")
+            st.info(f"Descriere: {CODURI_FSC_MATERIE_PRIMA[cod_fsc]}")
+        with col2:
+            certificare_fsc = st.selectbox("Certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA, key="cert_fsc_add")
+    
+    # Formular pentru restul datelor
     with st.form("add_hartie_form"):
         sortiment = st.text_input("Sortiment Hârtie*:")
         
@@ -92,26 +106,14 @@ with tab2:
         with col2:
             gramaj = st.number_input("Gramaj (g/m²)*:", min_value=1, value=80)
             stoc = st.number_input("Stoc (coli)*:", min_value=0.0, value=0.0, step=1.0)
-
-        
-        # Certificare FSC materie primă
-        st.markdown("### Certificare FSC Materie Primă")
-        has_fsc = st.checkbox("Hârtie certificată FSC (materie primă)")
-        
-        if has_fsc:
-            col1, col2 = st.columns(2)
-            with col1:
-                cod_fsc = st.selectbox("Cod FSC materie primă*:", list(CODURI_FSC_MATERIE_PRIMA.keys()))
-                st.info(f"Descriere: {CODURI_FSC_MATERIE_PRIMA[cod_fsc]}")
-            with col2:
-                certificare_fsc = st.selectbox("Certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA)
-        else:
-            cod_fsc = None
-            certificare_fsc = None
         
         # Calculare greutate
         greutate = dimensiune_1 * dimensiune_2 * gramaj * stoc / 10**7
         st.write(f"Greutate calculată: {greutate:.2f} kg")
+        
+        # Afișare informații FSC selectate (dacă există)
+        if has_fsc and cod_fsc and certificare_fsc:
+            st.info(f"🌿 FSC selectat: {cod_fsc} - {certificare_fsc}")
         
         submitted = st.form_submit_button("Adaugă Hârtie")
         

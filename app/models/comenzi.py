@@ -39,6 +39,7 @@ class Comanda(Base):
     nr_coli_tipar = Column(Integer, nullable=True)  # Calculat: tiraj/ex_pe_coala (rotunjit în sus)
     coli_prisoase = Column(Integer, nullable=False, default=0)  # Coli prisoase
     total_coli = Column(Integer, nullable=True)  # nr_coli_tipar + coli_prisoase
+    nr_pagini_pe_coala = Column(Integer, nullable=False, default=2)
     
     coli_mari = Column(Float, nullable=True)  # Pentru compatibilitate cu codul existent
     greutate = Column(Float, nullable=True)  # g - calculat
@@ -82,9 +83,10 @@ class Comanda(Base):
         return f"<Comanda(id={self.id}, numar_comanda={self.numar_comanda}, nume_lucrare='{self.nume_lucrare}')>"
     
     def calculeaza_nr_coli_tipar(self):
-        """Calculează numărul de coli de tipar (rotunjit în sus)"""
-        if self.ex_pe_coala and self.ex_pe_coala > 0:
-            return math.ceil(self.tiraj / self.ex_pe_coala)
+        """Calculează numărul de coli de tipar conform noii formule"""
+        if self.nr_pagini_pe_coala and self.nr_pagini_pe_coala > 0:
+            # Formula nouă: (tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)
+            return math.ceil((self.tiraj * self.nr_pagini) / (2 * self.nr_pagini_pe_coala))
         return 0
     
     def calculeaza_total_coli(self):

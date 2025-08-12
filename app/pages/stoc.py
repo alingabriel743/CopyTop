@@ -44,7 +44,8 @@ with tab1:
                 "Format": intrare.hartie.format_hartie,
                 "Gramaj": f"{intrare.hartie.gramaj} g/m²",
                 "Cantitate Intrată": f"{int(intrare.cantitate) if intrare.cantitate == int(intrare.cantitate) else intrare.cantitate} coli",
-                "Nr. Factură": intrare.nr_factura
+                "Nr. Factură": intrare.nr_factura,
+                "Furnizor": intrare.furnizor  # Adăugat furnizor
             })
         
         # Afișare tabel
@@ -77,6 +78,18 @@ with tab2:
             # Detalii intrare
             cantitate = st.number_input("Cantitate (coli)*:", min_value=0.1, step=0.1, value=100.0)
             nr_factura = st.text_input("Număr factură achiziție*:")
+            
+            # Lista furnizorilor
+            furnizori = ["Antalis", "Glass-Co Industries", "Romanian Paper Distribution", 
+                        "Europapier", "Romprix", "GPV", "Alt furnizor"]
+            furnizor_selectat = st.selectbox("Furnizor*:", furnizori)
+            
+            # Dacă selectează "Alt furnizor", permite introducere manuală
+            if furnizor_selectat == "Alt furnizor":
+                furnizor = st.text_input("Introduceți numele furnizorului*:")
+            else:
+                furnizor = furnizor_selectat
+            
             data = st.date_input("Data intrare*:", value=datetime.now())
             
             # Info hartie selectată
@@ -91,6 +104,8 @@ with tab2:
             # Validare date
             if not nr_factura:
                 st.error("Numărul facturii este obligatoriu!")
+            elif not furnizor:
+                st.error("Furnizorul este obligatoriu!")
             elif cantitate <= 0:
                 st.error("Cantitatea trebuie să fie mai mare decât 0!")
             else:
@@ -101,6 +116,7 @@ with tab2:
                         hartie_id=hartie_id,
                         cantitate=cantitate,
                         nr_factura=nr_factura,
+                        furnizor=furnizor,
                         data=data
                     )
                     session.add(intrare)
@@ -126,7 +142,7 @@ with tab3:
     if not intrari:
         st.info("Nu există intrări de stoc în baza de date.")
     else:
-        intrare_options = [f"{i.id} - {i.data.strftime('%d-%m-%Y')} - {i.hartie.sortiment} - {i.cantitate} coli" for i in intrari]
+        intrare_options = [f"{i.id} - {i.data.strftime('%d-%m-%Y')} - {i.hartie.sortiment} - {i.cantitate} coli - {i.furnizor}" for i in intrari]
         selected_intrare = st.selectbox("Selectează intrarea de șters:", intrare_options)
         
         intrare_id = int(selected_intrare.split(" - ")[0])
@@ -138,6 +154,7 @@ with tab3:
         - Hârtie: {intrare.hartie.sortiment}
         - Cantitate: {intrare.cantitate} coli
         - Nr. Factură: {intrare.nr_factura}
+        - Furnizor: {intrare.furnizor}
         
         Stocul hârtiei va fi actualizat corespunzător.
         """)
