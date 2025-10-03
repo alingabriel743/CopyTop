@@ -1,5 +1,5 @@
 # app/utils/pdf_utils.py
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, A5
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm, mm
@@ -16,14 +16,14 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     # Creează buffer pentru PDF
     buffer = io.BytesIO()
     
-    # Configurare document
+    # Configurare document - A5 format (148 x 210 mm)
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=A4,
-        rightMargin=20*mm,
-        leftMargin=20*mm,
-        topMargin=15*mm,
-        bottomMargin=15*mm
+        pagesize=A5,
+        rightMargin=10*mm,
+        leftMargin=10*mm,
+        topMargin=10*mm,
+        bottomMargin=10*mm
     )
     
     # Stiluri
@@ -36,7 +36,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     header_data = [
         [comanda.echipament, f"COMANDA NR. {comanda.numar_comanda}/{comanda.data.year}"]
     ]
-    header_table = Table(header_data, colWidths=[8*cm, 8*cm])
+    header_table = Table(header_data, colWidths=[6.4*cm, 6.4*cm])
     header_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
@@ -53,7 +53,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     beneficiar_data = [
         [f"BENEFICIAR: {beneficiar.nume}"]
     ]
-    beneficiar_table = Table(beneficiar_data, colWidths=[16*cm])
+    beneficiar_table = Table(beneficiar_data, colWidths=[12.8*cm])
     beneficiar_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -72,7 +72,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
         [f"LUCRARE: {comanda.nume_lucrare}"],
         [f"PO CLIENT: {comanda.po_client or ''}"]
     ]
-    lucrare_table = Table(lucrare_data, colWidths=[16*cm])
+    lucrare_table = Table(lucrare_data, colWidths=[12.8*cm])
     lucrare_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -90,7 +90,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     tiraj_data = [
         [f"TIRAJ: {comanda.tiraj}"]
     ]
-    tiraj_table = Table(tiraj_data, colWidths=[16*cm])
+    tiraj_table = Table(tiraj_data, colWidths=[12.8*cm])
     tiraj_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -109,10 +109,10 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     descriere_data = [
         ["DESCRIERE LUCRARE"],
         [descriere_text],
-        [f"{comanda.latime} x {comanda.inaltime} mm"],
+        [f"Format: {comanda.latime} x {comanda.inaltime} mm / Nr. de pagini: {comanda.nr_pagini}"],
         [f"GREUTATE (g): {comanda.greutate:.2f}" if comanda.greutate else "GREUTATE (g): -"]
     ]
-    descriere_table = Table(descriere_data, colWidths=[16*cm], rowHeights=[8*mm, 25*mm, 8*mm, 8*mm])
+    descriere_table = Table(descriere_data, colWidths=[12.8*cm], rowHeights=[8*mm, 20*mm, 8*mm, 8*mm])
     descriere_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),  # Prima linie bold
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),     # Restul normal
@@ -135,7 +135,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     fsc_data = [
         [fsc_text]
     ]
-    fsc_table = Table(fsc_data, colWidths=[16*cm])
+    fsc_table = Table(fsc_data, colWidths=[12.8*cm])
     fsc_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -149,11 +149,13 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     story.append(fsc_table)
     story.append(Spacer(1, 3*mm))
     
-    # COALA TIPAR și NR. CULORI
+    # COALA TIPAR, NR. CULORI și NR. PAG/COALA
+    nr_pag_coala = getattr(comanda, 'nr_pagini_pe_coala', 2)
     coala_culori_data = [
-        [f"COALA TIPAR: {comanda.coala_tipar or ''}", f"NR. CULORI: {comanda.nr_culori}"]
+        [f"COALA TIPAR: {comanda.coala_tipar or ''}", f"NR. CULORI: {comanda.nr_culori}"],
+        [f"NR. PAG/COALA: {nr_pag_coala}", ""]
     ]
-    coala_culori_table = Table(coala_culori_data, colWidths=[8*cm, 8*cm])
+    coala_culori_table = Table(coala_culori_data, colWidths=[6.4*cm, 6.4*cm])
     coala_culori_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -167,12 +169,13 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     story.append(coala_culori_table)
     story.append(Spacer(1, 3*mm))
     
-    # HARTIE și NR. COLI TIPAR
+    # HARTIE, NR. COLI TIPAR și COLI PRISOASE
     hartie_coli_data = [
         [f"HARTIE/GRAMAJ: {hartie.sortiment} ({hartie.gramaj}g)"],
-        [f"NR. COLI TIPAR: {comanda.total_coli or comanda.nr_coli_tipar or '-'}"]
+        [f"NR. COLI TIPAR: {comanda.total_coli or comanda.nr_coli_tipar or '-'}"],
+        ["COLI PRISOASE: _____________"]
     ]
-    hartie_coli_table = Table(hartie_coli_data, colWidths=[16*cm])
+    hartie_coli_table = Table(hartie_coli_data, colWidths=[12.8*cm])
     hartie_coli_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -190,7 +193,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     plastifiere_data = [
         [f"PLASTIFIERE: {comanda.plastifiere or ''}"]
     ]
-    plastifiere_table = Table(plastifiere_data, colWidths=[16*cm])
+    plastifiere_table = Table(plastifiere_data, colWidths=[12.8*cm])
     plastifiere_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 11),
@@ -232,7 +235,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
         [laminare_text],
         [f"{taiere_checkbox} Taiere Cutter Plotter"]
     ]
-    finisare_table = Table(finisare_data, colWidths=[16*cm])
+    finisare_table = Table(finisare_data, colWidths=[12.8*cm])
     finisare_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
@@ -251,7 +254,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
         [f"Detalii finisare: {comanda.detalii_finisare or ''}"],
         [f"Livrare: {comanda.detalii_livrare or ''}"]
     ]
-    detalii_table = Table(detalii_data, colWidths=[16*cm], rowHeights=[20*mm, 20*mm])
+    detalii_table = Table(detalii_data, colWidths=[12.8*cm], rowHeights=[15*mm, 15*mm])
     detalii_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),

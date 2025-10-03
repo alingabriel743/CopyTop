@@ -64,6 +64,8 @@ class Comanda(Base):
     detalii_livrare = Column(Text, nullable=True)
     pret = Column(Float, nullable=True)
     facturata = Column(Boolean, nullable=False, default=False)
+    nr_factura = Column(String(50), nullable=True)  # Număr factură
+    data_facturare = Column(Date, nullable=True)  # Data facturării
     
     # Relații
     beneficiar = relationship("Beneficiar", back_populates="comenzi")

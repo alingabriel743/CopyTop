@@ -69,6 +69,29 @@ def migrate_stoc_table_v3(cursor):
         cursor.execute("ALTER TABLE stoc ALTER COLUMN furnizor SET NOT NULL")
         logger.info("✅ Câmpul 'furnizor' setat ca obligatoriu")
 
+def migrate_hartie_table_v4(cursor):
+    """Adaugă câmpul cod_certificare în tabela hartie"""
+    logger.info("🔄 Migrare tabelă 'hartie' - V4...")
+    
+    # Adaugă coloana cod_certificare
+    if not check_column_exists(cursor, 'hartie', 'cod_certificare'):
+        cursor.execute("ALTER TABLE hartie ADD COLUMN cod_certificare VARCHAR(100)")
+        logger.info("✅ Adăugată coloana 'cod_certificare'")
+
+def migrate_comenzi_table_v4(cursor):
+    """Adaugă câmpurile nr_factura și data_facturare în tabela comenzi"""
+    logger.info("🔄 Migrare tabelă 'comenzi' - V4...")
+    
+    # Adaugă coloana nr_factura
+    if not check_column_exists(cursor, 'comenzi', 'nr_factura'):
+        cursor.execute("ALTER TABLE comenzi ADD COLUMN nr_factura VARCHAR(50)")
+        logger.info("✅ Adăugată coloana 'nr_factura'")
+    
+    # Adaugă coloana data_facturare
+    if not check_column_exists(cursor, 'comenzi', 'data_facturare'):
+        cursor.execute("ALTER TABLE comenzi ADD COLUMN data_facturare DATE")
+        logger.info("✅ Adăugată coloana 'data_facturare'")
+
 def main():
     """Funcția principală de migrare V3"""
     logger.info("🚀 Începe migrarea bazei de date Copy Top v3.0")
@@ -94,27 +117,45 @@ def main():
             
             # Verifică dacă migrarea v3 a fost deja aplicată
             cursor.execute("SELECT version FROM migration_history WHERE version = 'v3.0'")
-            if cursor.fetchone():
+            v3_applied = cursor.fetchone() is not None
+            if v3_applied:
                 logger.info("✅ Migrarea v3.0 a fost deja aplicată")
-                cursor.close()
-                conn.close()
-                return True
                 
         except Exception as e:
             logger.warning(f"⚠️ Eroare la verificarea istoricului: {e}")
         
-        # Aplicare migrări
-        migrate_comenzi_table_v3(cursor)
-        migrate_stoc_table_v3(cursor)
+        # Aplicare migrări v3 (doar dacă nu a fost aplicată)
+        if not v3_applied:
+            migrate_comenzi_table_v3(cursor)
+            migrate_stoc_table_v3(cursor)
+            
+            # Înregistrează migrarea v3
+            cursor.execute("""
+                INSERT INTO migration_history (version, description) 
+                VALUES ('v3.0', 'Adăugare nr_pagini_pe_coala și furnizor conform cerințe noi')
+            """)
+            logger.info("📝 Migrarea v3.0 înregistrată în istoric")
         
-        # Înregistrează migrarea
-        cursor.execute("""
-            INSERT INTO migration_history (version, description) 
-            VALUES ('v3.0', 'Adăugare nr_pagini_pe_coala și furnizor conform cerințe noi')
-        """)
-        logger.info("📝 Migrarea v3.0 înregistrată în istoric")
+        # Verifică dacă migrarea v4 a fost deja aplicată
+        cursor.execute("SELECT version FROM migration_history WHERE version = 'v4.0'")
+        if not cursor.fetchone():
+            logger.info("🔄 Aplicare migrare v4.0...")
+            
+            # Aplicare migrări v4
+            migrate_hartie_table_v4(cursor)
+            migrate_comenzi_table_v4(cursor)
+            
+            # Înregistrează migrarea v4
+            cursor.execute("""
+                INSERT INTO migration_history (version, description) 
+                VALUES ('v4.0', 'Adăugare cod_certificare la hartie și nr_factura/data_facturare la comenzi')
+            """)
+            logger.info("📝 Migrarea v4.0 înregistrată în istoric")
+            logger.info("🎉 Migrarea v4.0 s-a finalizat cu succes!")
+        else:
+            logger.info("✅ Migrarea v4.0 a fost deja aplicată")
         
-        logger.info("🎉 Migrarea v3.0 s-a finalizat cu succes!")
+        logger.info("🎉 Toate migrările s-au finalizat cu succes!")
         
         cursor.close()
         conn.close()

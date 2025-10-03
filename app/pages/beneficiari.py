@@ -136,7 +136,7 @@ with tab3:
                         session.delete(beneficiar)
                         session.commit()
                         st.success(f"Beneficiarul '{beneficiar.nume}' a fost șters cu succes!")
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         session.rollback()
                         st.error(f"Eroare la ștergerea beneficiarului: {e}")

@@ -481,7 +481,7 @@ with tab3:
                     st.write(f"**Lucrare:** {comanda.nume_lucrare}")
                     st.write(f"**Tiraj:** {comanda.tiraj}")
                 with col3:
-                    st.write(f"**Preț actual:** {comanda.pret:.2f} RON")
+                    st.write(f"**Preț actual:** {comanda.pret:.2f} RON" if comanda.pret else "**Preț actual:** Nesetat")
                     st.write(f"**PO Client:** {comanda.po_client or '-'}")
                 
                 st.markdown("---")

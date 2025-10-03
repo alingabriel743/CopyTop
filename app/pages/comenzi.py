@@ -7,7 +7,7 @@ from models import get_session
 from models.comenzi import Comanda
 from models.beneficiari import Beneficiar
 from models.hartie import Hartie
-from constants import CODURI_FSC_PRODUS_FINAL, TIPURI_CERTIFICARE_FSC_PRODUS, FORMATE_LAMINARE, OPTIUNI_PLASTIFIERE, OPTIUNI_CULORI
+from constants import CODURI_FSC_PRODUS_FINAL, CERTIFICARI_FSC_MATERIE_PRIMA, FORMATE_LAMINARE, OPTIUNI_PLASTIFIERE, OPTIUNI_CULORI
 from utils.pdf_utils import genereaza_comanda_pdf
 import tomli
 from pathlib import Path
@@ -259,9 +259,7 @@ with tab2:
     with col1:
         tiraj = st.number_input("Tiraj*:", min_value=1, value=500)
     with col2:
-        nr_pagini_pe_coala = st.number_input("Nr. pagini/coală*:", min_value=2, value=2, step=2, help="Câte pagini încap pe o coală de tipar")
-
-    descriere_lucrare = st.text_area("Descriere lucrare:", height=100, placeholder="Detalii despre lucrare...")
+        pass  # Empty column for spacing
 
     st.markdown("### Format")
     col1, col2, col3, col4 = st.columns(4)
@@ -274,21 +272,9 @@ with tab2:
         if nr_pagini % 2 != 0:
             st.warning("Numărul de pagini trebuie să fie multiplu de 2!")
     with col4:
-        indice_corectie = st.number_input("Indice corecție:", min_value=0.1, max_value=1.0, value=1.0, step=0.01)
+        indice_corectie = st.number_input("Indice corecție:", min_value=0.0001, max_value=1.0, value=1.0000, step=0.0001, format="%.4f")
 
-    # Calculează valorile automat
-    nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
-    coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=0, help="Coli suplimentare pentru prisos")
-    total_coli = nr_coli_tipar + coli_prisoase
-    greutate = tiraj * latime * inaltime * nr_pagini * indice_corectie / (2 * 10**6)
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Nr. coli tipar", nr_coli_tipar)
-    with col2:
-        st.metric("Total coli", total_coli)
-    with col3:
-        st.metric("Greutate estimată", f"{greutate:.2f} g")
+    descriere_lucrare = st.text_area("Descriere lucrare:", height=100, placeholder="Detalii despre lucrare...")
 
     st.markdown("### Certificare FSC Produs Final")
     certificare_fsc_produs = st.checkbox("Lucrare certificată FSC (produs final)")
@@ -303,7 +289,7 @@ with tab2:
             cod_fsc_produs = st.selectbox("Cod FSC produs*:", list(CODURI_FSC_PRODUS_FINAL.keys()))
             st.info(f"Descriere: {CODURI_FSC_PRODUS_FINAL[cod_fsc_produs]}")
         with col2:
-            tip_certificare_fsc_produs = st.selectbox("Tip certificare FSC*:", TIPURI_CERTIFICARE_FSC_PRODUS)
+            tip_certificare_fsc_produs = st.selectbox("Tip certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA)
 
     st.markdown("### Hârtie și Tipar")
     # Selectare hârtie cu logica FSC
@@ -340,6 +326,29 @@ with tab2:
         indice_coala = coale_tipar_compatibile.get(coala_tipar, 1)
 
     nr_culori = st.selectbox("Număr culori*:", OPTIUNI_CULORI)
+
+    # Nr. pag/coala moved here, below Număr culori
+    nr_pagini_pe_coala = st.number_input("Nr. pag/coală*:", min_value=1, value=2, help="Câte pagini încap pe o coală de tipar")
+
+    st.markdown("### Calcule și Coli")
+    # Calculează valorile automat
+    nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
+    coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=0, help="Coli suplimentare pentru prisos")
+    total_coli = nr_coli_tipar + coli_prisoase
+    greutate = tiraj * latime * inaltime * nr_pagini * indice_corectie / (2 * 10**6)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Nr. coli tipar", nr_coli_tipar)
+    with col2:
+        st.metric("Total coli", total_coli)
+    with col3:
+        st.metric("Greutate estimată", f"{greutate:.2f} g")
+
+    # Calculează coli mari pentru compatibilitate
+    coli_mari = total_coli / indice_coala if indice_coala > 0 else None
+    if coli_mari:
+        st.info(f"**Coli mari necesare:** `{coli_mari:.2f}`")
 
     st.markdown("### Finisare")
     col1, col2 = st.columns(2)
@@ -508,9 +517,7 @@ with tab3:
                     with col1:
                         tiraj = st.number_input("Tiraj*:", min_value=1, value=comanda.tiraj)
                     with col2:
-                        ex_pe_coala = st.number_input("Ex/coală*:", min_value=1, value=comanda.ex_pe_coala)
-
-                    descriere_lucrare = st.text_area("Descriere lucrare:", value=comanda.descriere_lucrare or "", height=100)
+                        pass  # Empty column for spacing
 
                     st.markdown("### Format")
                     col1, col2, col3, col4 = st.columns(4)
@@ -521,188 +528,206 @@ with tab3:
                     with col3:
                         nr_pagini = st.number_input("Număr pagini*:", min_value=2, value=comanda.nr_pagini, step=2)
                     with col4:
-                        indice_corectie = st.number_input("Indice corecție:", min_value=0.1, max_value=1.0, 
-                                                        value=float(comanda.indice_corectie), step=0.01)
+                        indice_corectie = st.number_input("Indice corecție:", min_value=0.0001, max_value=1.0, 
+                                                        value=float(comanda.indice_corectie), step=0.0001, format="%.4f")
 
-                    # Calculează valorile automat
-                    nr_coli_tipar = math.ceil(tiraj / ex_pe_coala) if ex_pe_coala > 0 else 0
-                    coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=comanda.coli_prisoase or 0)
-                    total_coli = nr_coli_tipar + coli_prisoase
-                    greutate = tiraj * latime * inaltime * nr_pagini * indice_corectie / (2 * 10**6)
+                    descriere_lucrare = st.text_area("Descriere lucrare:", value=comanda.descriere_lucrare or "", height=100)
 
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Nr. coli tipar", nr_coli_tipar)
-                    with col2:
-                        st.metric("Total coli", total_coli)
-                    with col3:
-                        st.metric("Greutate estimată", f"{greutate:.2f} g")
+                    # Certificare FSC
+                    st.markdown("### Certificare FSC Produs Final")
+                    certificare_fsc_produs = st.checkbox("Lucrare certificată FSC (produs final)", value=comanda.certificare_fsc_produs)
+                    
+                    cod_fsc_produs = tip_certificare_fsc_produs = None
+                    if certificare_fsc_produs:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            cod_fsc_index = list(CODURI_FSC_PRODUS_FINAL.keys()).index(comanda.cod_fsc_produs) if comanda.cod_fsc_produs in CODURI_FSC_PRODUS_FINAL else 0
+                            cod_fsc_produs = st.selectbox("Cod FSC produs*:", list(CODURI_FSC_PRODUS_FINAL.keys()), index=cod_fsc_index)
+                            st.info(f"Descriere: {CODURI_FSC_PRODUS_FINAL[cod_fsc_produs]}")
+                        with col2:
+                            tip_fsc_index = CERTIFICARI_FSC_MATERIE_PRIMA.index(comanda.tip_certificare_fsc_produs) if comanda.tip_certificare_fsc_produs in CERTIFICARI_FSC_MATERIE_PRIMA else 0
+                            tip_certificare_fsc_produs = st.selectbox("Tip certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA, index=tip_fsc_index)
 
-
-    st.markdown("### Hârtie și Tipar")
-    # Selectare hârtie cu logica FSC
-    hartii = session.query(Hartie).filter(Hartie.stoc > 0).all()
-    
-    if certificare_fsc_produs:
-        # Filtrează doar hârtiile FSC
-        hartii_fsc = [h for h in hartii if h.fsc_materie_prima]
-        if not hartii_fsc:
-            st.error("Nu există hârtii certificate FSC în stoc pentru această comandă!")
-            st.stop()
-        hartii_disponibile = hartii_fsc
-        st.success(f"✅ Disponibile {len(hartii_fsc)} sortimente FSC în stoc")
-    else:
-        hartii_disponibile = hartii
-        if not hartii_disponibile:
-            st.error("Nu există sortimente de hârtie disponibile în stoc.")
-            st.stop()
-
-            hartie_options = [f"{h.id} - {h.sortiment} ({h.format_hartie}, {h.gramaj}g)" + (" - FSC" if h.fsc_materie_prima else "") for h in hartii_disponibile]
-            selected_hartie = st.selectbox("Sortiment hârtie*:", hartie_options, key="hartie_select")
-            hartie_id = int(selected_hartie.split(" - ")[0])
-            hartie_selectata = session.get(Hartie, hartie_id)
-            format_hartie = hartie_selectata.format_hartie
-
-            # ACUM putem verifica certificarea FSC după ce avem hartie_selectata
-            cod_fsc_produs = tip_certificare_fsc_produs = None
-            if certificare_fsc_produs:
-                st.info("📌 Pentru certificare FSC produs final, hârtia trebuie să fie certificată FSC materie primă!")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    cod_fsc_produs = st.selectbox("Cod FSC produs*:", list(CODURI_FSC_PRODUS_FINAL.keys()))
-                    st.info(f"Descriere: {CODURI_FSC_PRODUS_FINAL[cod_fsc_produs]}")
-                with col2:
-                    # Preia certificarea de la hârtia selectată
-                    if hartie_selectata and hartie_selectata.certificare_fsc_materie_prima:
-                        tip_certificare_fsc_produs = hartie_selectata.certificare_fsc_materie_prima
-                        st.info(f"Certificare preluată de la hârtie: {tip_certificare_fsc_produs}")
-                    else:
-                        st.error("Hârtia selectată nu are certificare FSC!")
-                        tip_certificare_fsc_produs = None
+                    st.markdown("### Hârtie și Tipar")
+                    # Selectare hârtie cu logica FSC
+                    hartii = session.query(Hartie).filter(Hartie.stoc > 0).all()
                     
                     if certificare_fsc_produs:
+                        # Filtrează doar hârtiile FSC
                         hartii_fsc = [h for h in hartii if h.fsc_materie_prima]
+                        if not hartii_fsc:
+                            st.error("Nu există hârtii certificate FSC în stoc pentru această comandă!")
                         hartii_disponibile = hartii_fsc
+                        st.success(f"✅ Disponibile {len(hartii_fsc)} sortimente FSC în stoc")
                     else:
                         hartii_disponibile = hartii
+                        if not hartii_disponibile:
+                            st.error("Nu există sortimente de hârtie disponibile în stoc.")
 
-                    hartie_options = [f"{h.id} - {h.sortiment} ({h.format_hartie}, {h.gramaj}g)" + (" - FSC" if h.fsc_materie_prima else "") for h in hartii_disponibile]
-                    hartie_index = next((i for i, h in enumerate(hartii_disponibile) if h.id == comanda.hartie_id), 0)
-                    selected_hartie = st.selectbox("Sortiment hârtie*:", hartie_options, index=hartie_index)
-                    hartie_id = int(selected_hartie.split(" - ")[0])
-                    hartie_selectata = session.get(Hartie, hartie_id)
-                    format_hartie = hartie_selectata.format_hartie
+                    if hartii_disponibile:
+                        hartie_options = [f"{h.id} - {h.sortiment} ({h.format_hartie}, {h.gramaj}g)" + (" - FSC" if h.fsc_materie_prima else "") for h in hartii_disponibile]
+                        hartie_index = next((i for i, h in enumerate(hartii_disponibile) if h.id == comanda.hartie_id), 0)
+                        selected_hartie = st.selectbox("Sortiment hârtie*:", hartie_options, index=hartie_index)
+                        hartie_id = int(selected_hartie.split(" - ")[0])
+                        hartie_selectata = session.get(Hartie, hartie_id)
+                        format_hartie = hartie_selectata.format_hartie
 
-                    # Coală tipar
-                    coale_tipar_compatibile = compatibilitate_hartie_coala.get(format_hartie, {})
-                    if coale_tipar_compatibile:
-                        coala_index = list(coale_tipar_compatibile.keys()).index(comanda.coala_tipar) if comanda.coala_tipar in coale_tipar_compatibile else 0
-                        coala_tipar = st.selectbox("Coală tipar*:", list(coale_tipar_compatibile.keys()), index=coala_index)
-                        indice_coala = coale_tipar_compatibile.get(coala_tipar, 1)
-                    else:
-                        st.warning(f"Nu există coale compatibile pentru formatul {format_hartie}")
-                        coala_tipar = comanda.coala_tipar
-                        indice_coala = 1
-
-                    nr_culori = st.selectbox("Număr culori*:", OPTIUNI_CULORI, 
-                                           index=OPTIUNI_CULORI.index(comanda.nr_culori) if comanda.nr_culori in OPTIUNI_CULORI else 0)
-
-                    st.markdown("### Finisare")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        plastifiere_options = ["Fără plastifiere"] + OPTIUNI_PLASTIFIERE
-                        plastifiere_idx = plastifiere_options.index(comanda.plastifiere) if comanda.plastifiere in plastifiere_options else 0
-                        plastifiere_sel = st.selectbox("Plastifiere:", plastifiere_options, index=plastifiere_idx)
-                        plastifiere = None if plastifiere_sel == "Fără plastifiere" else plastifiere_sel
-                        
-                        big = st.checkbox("Big", value=comanda.big)
-                        nr_biguri = st.number_input("Număr biguri:", min_value=1, value=comanda.nr_biguri or 2) if big else None
-                        
-                        taiere_cutter = st.checkbox("Tăiere Cutter/Plotter", value=comanda.taiere_cutter)
-                    
-                    with col2:
-                        laminare = st.checkbox("Laminare", value=comanda.laminare)
-                        format_laminare = numar_laminari = None
-                        if laminare:
-                            format_index = FORMATE_LAMINARE.index(comanda.format_laminare) if comanda.format_laminare in FORMATE_LAMINARE else 0
-                            format_laminare = st.selectbox("Format laminare*:", FORMATE_LAMINARE, index=format_index)
-                            numar_laminari = st.number_input("Număr laminări:", min_value=1, value=comanda.numar_laminari or 1)
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        detalii_finisare = st.text_area("Detalii finisare:", value=comanda.detalii_finisare or "", height=80)
-                    with col2:
-                        detalii_livrare = st.text_area("Detalii livrare:", value=comanda.detalii_livrare or "", height=80)
-
-                    # Calculează coli mari pentru compatibilitate
-                    coli_mari = total_coli / indice_coala if indice_coala > 0 else None
-
-                    # Butoane salvare
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        save_button = st.form_submit_button("💾 Salvează modificările", type="primary")
-                    with col2:
-                        cancel_button = st.form_submit_button("❌ Anulează")
-
-                    if save_button:
-                        # Validări
-                        if nr_pagini % 2 != 0:
-                            st.error("Numărul de pagini trebuie să fie multiplu de 2!")
-                        elif not nume_lucrare.strip():
-                            st.error("Numele lucrării este obligatoriu!")
-                        elif certificare_fsc_produs and (not cod_fsc_produs or not tip_certificare_fsc_produs):
-                            st.error("Pentru certificare FSC produs final, trebuie completate toate câmpurile FSC!")
-                        elif certificare_fsc_produs and not hartie_selectata.fsc_materie_prima:
-                            st.error("Pentru certificare FSC produs final, hârtia trebuie să fie certificată FSC materie primă!")
+                        # Coală tipar
+                        coale_tipar_compatibile = compatibilitate_hartie_coala.get(format_hartie, {})
+                        if coale_tipar_compatibile:
+                            coala_index = list(coale_tipar_compatibile.keys()).index(comanda.coala_tipar) if comanda.coala_tipar in coale_tipar_compatibile else 0
+                            coala_tipar = st.selectbox("Coală tipar*:", list(coale_tipar_compatibile.keys()), index=coala_index)
+                            indice_coala = coale_tipar_compatibile.get(coala_tipar, 1)
                         else:
-                            try:
-                                # Actualizare comandă
-                                comanda.echipament = echipament
-                                comanda.data = data
-                                comanda.beneficiar_id = beneficiar_id
-                                comanda.nume_lucrare = nume_lucrare
-                                comanda.po_client = po_client
-                                comanda.tiraj = tiraj
-                                comanda.ex_pe_coala = ex_pe_coala
-                                comanda.descriere_lucrare = descriere_lucrare
-                                comanda.latime = latime
-                                comanda.inaltime = inaltime
-                                comanda.nr_pagini = nr_pagini
-                                comanda.indice_corectie = indice_corectie
-                                comanda.certificare_fsc_produs = certificare_fsc_produs
-                                comanda.fsc = certificare_fsc_produs  # Pentru compatibilitate
-                                comanda.cod_fsc_produs = cod_fsc_produs
-                                comanda.tip_certificare_fsc_produs = tip_certificare_fsc_produs
-                                comanda.hartie_id = hartie_id
-                                comanda.coala_tipar = coala_tipar
-                                comanda.nr_culori = nr_culori
-                                comanda.nr_coli_tipar = nr_coli_tipar
-                                comanda.coli_prisoase = coli_prisoase
-                                comanda.total_coli = total_coli
-                                comanda.coli_mari = coli_mari
-                                comanda.greutate = greutate
-                                comanda.plastifiere = plastifiere
-                                comanda.big = big
-                                comanda.nr_biguri = nr_biguri
-                                comanda.laminare = laminare
-                                comanda.format_laminare = format_laminare
-                                comanda.numar_laminari = numar_laminari
-                                comanda.taiere_cutter = taiere_cutter
-                                comanda.detalii_finisare = detalii_finisare
-                                comanda.detalii_livrare = detalii_livrare
+                            st.warning(f"Nu există coale compatibile pentru formatul {format_hartie}")
+                            coala_tipar = comanda.coala_tipar
+                            indice_coala = 1
 
-                                session.commit()
-                                st.success(f"✅ Comanda #{comanda.numar_comanda} a fost actualizată cu succes!")
-                                st.balloons()
-                                st.rerun()
-                                
-                            except Exception as e:
-                                session.rollback()
-                                st.error(f"Eroare la actualizare: {e}")
+                        nr_culori = st.selectbox("Număr culori*:", OPTIUNI_CULORI, 
+                                               index=OPTIUNI_CULORI.index(comanda.nr_culori) if comanda.nr_culori in OPTIUNI_CULORI else 0)
 
-                    if cancel_button:
-                        st.rerun()
+                        # Nr. pag/coala moved here, below Număr culori
+                        nr_pagini_pe_coala = st.number_input("Nr. pag/coală*:", min_value=1, value=getattr(comanda, 'nr_pagini_pe_coala', 2), help="Câte pagini încap pe o coală de tipar")
+                        
+                        # Ex pe coală (pentru compatibilitate cu modelul)
+                        ex_pe_coala = st.number_input("Ex/coală:", min_value=1, value=comanda.ex_pe_coala or 1, help="Exemplare pe coală")
+
+                        st.markdown("### Calcule și Coli")
+                        # Calculează valorile automat
+                        nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
+                        coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=comanda.coli_prisoase or 0)
+                        total_coli = nr_coli_tipar + coli_prisoase
+                        greutate = tiraj * latime * inaltime * nr_pagini * indice_corectie / (2 * 10**6)
+
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Nr. coli tipar", nr_coli_tipar)
+                        with col2:
+                            st.metric("Total coli", total_coli)
+                        with col3:
+                            st.metric("Greutate estimată", f"{greutate:.2f} g")
+
+                        # Calculează coli mari pentru compatibilitate
+                        coli_mari = total_coli / indice_coala if indice_coala > 0 else None
+                        if coli_mari:
+                            st.info(f"**Coli mari necesare:** `{coli_mari:.2f}`")
+
+                        st.markdown("### Finisare")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            plastifiere_options = ["Fără plastifiere"] + OPTIUNI_PLASTIFIERE
+                            plastifiere_idx = plastifiere_options.index(comanda.plastifiere) if comanda.plastifiere in plastifiere_options else 0
+                            plastifiere_sel = st.selectbox("Plastifiere:", plastifiere_options, index=plastifiere_idx)
+                            plastifiere = None if plastifiere_sel == "Fără plastifiere" else plastifiere_sel
+                            
+                            big = st.checkbox("Big", value=comanda.big)
+                            nr_biguri = st.number_input("Număr biguri:", min_value=1, value=comanda.nr_biguri or 2) if big else None
+                            
+                            # Opțiuni finisare suplimentare
+                            st.markdown("**Opțiuni finisare:**")
+                            col1a, col1b = st.columns(2)
+                            with col1a:
+                                capsat = st.checkbox("Capsat", value=comanda.capsat)
+                                colturi_rotunde = st.checkbox("Colturi rotunde", value=comanda.colturi_rotunde)
+                                perfor = st.checkbox("Perfor", value=comanda.perfor)
+                                spiralare = st.checkbox("Spiralare", value=comanda.spiralare)
+                            with col1b:
+                                stantare = st.checkbox("Stantare", value=comanda.stantare)
+                                lipire = st.checkbox("Lipire", value=comanda.lipire)
+                                codita_wobbler = st.checkbox("Codita wobbler", value=comanda.codita_wobbler)
+                            
+                            taiere_cutter = st.checkbox("Tăiere Cutter/Plotter", value=comanda.taiere_cutter)
+                        
+                        with col2:
+                            laminare = st.checkbox("Laminare", value=comanda.laminare)
+                            format_laminare = numar_laminari = None
+                            if laminare:
+                                format_index = FORMATE_LAMINARE.index(comanda.format_laminare) if comanda.format_laminare in FORMATE_LAMINARE else 0
+                                format_laminare = st.selectbox("Format laminare*:", FORMATE_LAMINARE, index=format_index)
+                                numar_laminari = st.number_input("Număr laminări:", min_value=1, value=comanda.numar_laminari or 1)
+
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            detalii_finisare = st.text_area("Detalii finisare:", value=comanda.detalii_finisare or "", height=80)
+                        with col2:
+                            detalii_livrare = st.text_area("Detalii livrare:", value=comanda.detalii_livrare or "", height=80)
+
+                        # Calculează coli mari pentru compatibilitate
+                        coli_mari = total_coli / indice_coala if indice_coala > 0 else None
+
+                        # Butoane salvare
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            save_button = st.form_submit_button("💾 Salvează modificările", type="primary")
+                        with col2:
+                            cancel_button = st.form_submit_button("❌ Anulează")
+
+                        if save_button:
+                            # Validări
+                            if nr_pagini % 2 != 0:
+                                st.error("Numărul de pagini trebuie să fie multiplu de 2!")
+                            elif not nume_lucrare.strip():
+                                st.error("Numele lucrării este obligatoriu!")
+                            elif certificare_fsc_produs and (not cod_fsc_produs or not tip_certificare_fsc_produs):
+                                st.error("Pentru certificare FSC produs final, trebuie completate toate câmpurile FSC!")
+                            elif certificare_fsc_produs and not hartie_selectata.fsc_materie_prima:
+                                st.error("Pentru certificare FSC produs final, hârtia trebuie să fie certificată FSC materie primă!")
+                            else:
+                                try:
+                                    # Actualizare comandă
+                                    comanda.echipament = echipament
+                                    comanda.data = data
+                                    comanda.beneficiar_id = beneficiar_id
+                                    comanda.nume_lucrare = nume_lucrare
+                                    comanda.po_client = po_client
+                                    comanda.tiraj = tiraj
+                                    comanda.ex_pe_coala = ex_pe_coala
+                                    comanda.nr_pagini_pe_coala = nr_pagini_pe_coala
+                                    comanda.descriere_lucrare = descriere_lucrare
+                                    comanda.latime = latime
+                                    comanda.inaltime = inaltime
+                                    comanda.nr_pagini = nr_pagini
+                                    comanda.indice_corectie = indice_corectie
+                                    comanda.certificare_fsc_produs = certificare_fsc_produs
+                                    comanda.fsc = certificare_fsc_produs  # Pentru compatibilitate
+                                    comanda.cod_fsc_produs = cod_fsc_produs
+                                    comanda.tip_certificare_fsc_produs = tip_certificare_fsc_produs
+                                    comanda.hartie_id = hartie_id
+                                    comanda.coala_tipar = coala_tipar
+                                    comanda.nr_culori = nr_culori
+                                    comanda.nr_coli_tipar = nr_coli_tipar
+                                    comanda.coli_prisoase = coli_prisoase
+                                    comanda.total_coli = total_coli
+                                    comanda.coli_mari = coli_mari
+                                    comanda.greutate = greutate
+                                    comanda.plastifiere = plastifiere
+                                    comanda.big = big
+                                    comanda.nr_biguri = nr_biguri
+                                    comanda.capsat = capsat
+                                    comanda.colturi_rotunde = colturi_rotunde
+                                    comanda.perfor = perfor
+                                    comanda.spiralare = spiralare
+                                    comanda.stantare = stantare
+                                    comanda.lipire = lipire
+                                    comanda.codita_wobbler = codita_wobbler
+                                    comanda.laminare = laminare
+                                    comanda.format_laminare = format_laminare
+                                    comanda.numar_laminari = numar_laminari
+                                    comanda.taiere_cutter = taiere_cutter
+                                    comanda.detalii_finisare = detalii_finisare
+                                    comanda.detalii_livrare = detalii_livrare
+
+                                    session.commit()
+                                    st.success(f"✅ Comanda #{comanda.numar_comanda} a fost actualizată cu succes!")
+                                    st.balloons()
+                                    st.rerun()
+                                    
+                                except Exception as e:
+                                    session.rollback()
+                                    st.error(f"Eroare la actualizare: {e}")
+
+                        if cancel_button:
+                            st.rerun()
             
             else:
                 # VIZUALIZARE NORMALĂ
@@ -826,4 +851,5 @@ with tab3:
                                     session.rollback()
                                     st.error(f"Eroare la ștergere: {e}")
 
+# Închidere sesiune
 session.close()

@@ -1,9 +1,9 @@
 # app/db_init.py
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from app.config import DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
-from app.models import create_tables, get_session
-from app.models import Beneficiar, Hartie, Stoc, Comanda
+from config import DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
+from models import create_tables, get_session
+from models import Beneficiar, Hartie, Stoc, Comanda
 
 def create_database():
     """Creează baza de date dacă nu există"""

@@ -19,6 +19,7 @@ class Hartie(Base):
     fsc_materie_prima = Column(Boolean, nullable=False, default=False)
     cod_fsc_materie_prima = Column(String(50), nullable=True)  # P 2.1, P 2.4.9, etc.
     certificare_fsc_materie_prima = Column(String(50), nullable=True)  # FSC Mix Credit, FSC Recycled, etc.
+    cod_certificare = Column(String(100), nullable=True)  # Cod certificare furnizor
     
     # Relații
     intrari_stoc = relationship("Stoc", back_populates="hartie")
