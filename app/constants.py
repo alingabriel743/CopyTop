@@ -19,15 +19,16 @@ CERTIFICARI_FSC_MATERIE_PRIMA = [
 ]
 
 # Coduri FSC pentru produsul final (Output Product Type)
+# Ordinea: P 8.4, P 7.8, P 8.5, P 7.1, P 7.6, P 8.6, P 7.5, P 7.7
 CODURI_FSC_PRODUS_FINAL = {
-    "P 7.1": "Notebooks",
-    "P 7.5": "Post and greeting cards", 
-    "P 7.6": "Envelopes",
-    "P 7.7": "Gummed paper",
-    "P 7.8": "Adhesive labels",
     "P 8.4": "Advertising materials",
+    "P 7.8": "Adhesive labels",
     "P 8.5": "Business card",
-    "P 8.6": "Calendars, diaries and organisers"
+    "P 7.1": "Notebooks",
+    "P 7.6": "Envelopes",
+    "P 8.6": "Calendars, diaries and organisers",
+    "P 7.5": "Post and greeting cards",
+    "P 7.7": "Gummed paper"
 }
 
 # Tipuri de certificare FSC pentru produsul final

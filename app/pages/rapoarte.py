@@ -14,8 +14,42 @@ from models.stoc import Stoc
 from models.comenzi import Comanda
 import tomli
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Încarcă variabilele de mediu
+load_dotenv()
 
 st.set_page_config(page_title="Rapoarte", page_icon="📊", layout="wide")
+
+def check_password():
+    """Returnează `True` dacă utilizatorul are parola corectă."""
+    def password_entered():
+        module_password = os.getenv("MODULE_PASSWORD", "potypoc")
+        if st.session_state["password"] == module_password:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" in st.session_state and st.session_state["password_correct"]:
+        return True
+
+    st.title("Rapoarte")
+    st.subheader("Această secțiune este protejată")
+    st.write("Introduceți parola pentru a accesa secțiunea...")
+    
+    st.text_input("Parolă", type="password", key="password", on_change=password_entered, label_visibility="collapsed")
+    
+    if "password_correct" in st.session_state:
+        if not st.session_state["password_correct"]:
+            st.error("Parolă incorectă!")
+            return False
+        
+    return False
+
+if not check_password():
+    st.stop()
 
 st.title("Rapoarte")
 

@@ -170,7 +170,6 @@ with tab1:
                 "Hârtie": comanda.hartie.sortiment,
                 "Dimensiuni": f"{comanda.latime}x{comanda.inaltime}mm",
                 "Nr. Pagini": comanda.nr_pagini,
-                "Ex/Coală": comanda.ex_pe_coala,
                 "Coli Tipar": comanda.nr_coli_tipar or "-",
                 "FSC Produs": "Da" if comanda.certificare_fsc_produs else "Nu",
                 "Facturată": "Da" if comanda.facturata else "Nu"
@@ -335,7 +334,7 @@ with tab2:
     nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
     coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=0, help="Coli suplimentare pentru prisos")
     total_coli = nr_coli_tipar + coli_prisoase
-    greutate = tiraj * latime * inaltime * nr_pagini * indice_corectie / (2 * 10**6)
+    greutate = latime * inaltime * nr_pagini * indice_corectie * hartie_selectata.gramaj * tiraj / (2 * 10**9)
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -588,16 +587,13 @@ with tab3:
 
                         # Nr. pag/coala moved here, below Număr culori
                         nr_pagini_pe_coala = st.number_input("Nr. pag/coală*:", min_value=1, value=getattr(comanda, 'nr_pagini_pe_coala', 2), help="Câte pagini încap pe o coală de tipar")
-                        
-                        # Ex pe coală (pentru compatibilitate cu modelul)
-                        ex_pe_coala = st.number_input("Ex/coală:", min_value=1, value=comanda.ex_pe_coala or 1, help="Exemplare pe coală")
 
                         st.markdown("### Calcule și Coli")
                         # Calculează valorile automat
                         nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
                         coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=comanda.coli_prisoase or 0)
                         total_coli = nr_coli_tipar + coli_prisoase
-                        greutate = tiraj * latime * inaltime * nr_pagini * indice_corectie / (2 * 10**6)
+                        greutate = latime * inaltime * nr_pagini * indice_corectie * hartie_selectata.gramaj * tiraj / (2 * 10**9)
 
                         col1, col2, col3 = st.columns(3)
                         with col1:
@@ -681,7 +677,7 @@ with tab3:
                                     comanda.nume_lucrare = nume_lucrare
                                     comanda.po_client = po_client
                                     comanda.tiraj = tiraj
-                                    comanda.ex_pe_coala = ex_pe_coala
+                                    comanda.ex_pe_coala = 1  # Valoare fixă pentru compatibilitate
                                     comanda.nr_pagini_pe_coala = nr_pagini_pe_coala
                                     comanda.descriere_lucrare = descriere_lucrare
                                     comanda.latime = latime
@@ -742,7 +738,6 @@ with tab3:
                     st.write(f"**Nume lucrare:** {comanda.nume_lucrare}")
                     st.write(f"**PO Client:** {comanda.po_client or '-'}")
                     st.write(f"**Tiraj:** {comanda.tiraj}")
-                    st.write(f"**Ex/coală:** {comanda.ex_pe_coala}")
                 
                 with col3:
                     st.write(f"**Dimensiuni:** {comanda.latime}x{comanda.inaltime}mm")

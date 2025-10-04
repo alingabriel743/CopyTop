@@ -97,5 +97,9 @@ class Comanda(Base):
         return nr_coli + (self.coli_prisoase or 0)
     
     def calculeaza_greutate(self):
-        """Calculează greutatea comenzii în grame - formula existentă"""
-        return self.tiraj * self.latime * self.inaltime * self.nr_pagini * self.indice_corectie / (2 * 10**6)
+        """Calculează greutatea comenzii în grame - formula corectată"""
+        if self.hartie and hasattr(self.hartie, 'gramaj'):
+            gramaj = self.hartie.gramaj
+        else:
+            gramaj = 80  # Valoare implicită dacă nu există gramaj
+        return self.latime * self.inaltime * self.nr_pagini * self.indice_corectie * gramaj * self.tiraj / (2 * 10**9)

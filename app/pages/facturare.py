@@ -9,6 +9,11 @@ from models.hartie import Hartie
 import tomli
 from pathlib import Path
 import io
+import os
+from dotenv import load_dotenv
+
+# Încarcă variabilele de mediu
+load_dotenv()
 
 # Încărcare indici coală tipar pentru calcul consum hartie
 try:
@@ -48,7 +53,8 @@ def check_password():
     """Returnează `True` dacă utilizatorul are parola corectă."""
     def password_entered():
         # Verifică dacă parola introdusă este corectă
-        if st.session_state["password"] == st.secrets.get("facturare_password", "admin"):
+        module_password = os.getenv("MODULE_PASSWORD", "potypoc")
+        if st.session_state["password"] == module_password:
             st.session_state["password_correct"] = True
             del st.session_state["password"]  # Nu păstra parola în session_state
         else:
@@ -157,9 +163,14 @@ with tab1:
                     min_value=0.0,
                     step=10.0,
                     format="%.2f"
+                ),
+                "PO Client": st.column_config.TextColumn(
+                    "PO Client",
+                    help="Editează PO Client pentru fiecare comandă",
+                    max_chars=100
                 )
             },
-            disabled=["Nr. Comandă", "Data", "Nume Lucrare", "Tiraj", "PO Client", "FSC", "Cod FSC", "Certificare FSC"],
+            disabled=["Nr. Comandă", "Data", "Nume Lucrare", "Tiraj", "FSC", "Cod FSC", "Certificare FSC"],
             key="comenzi_selector"
         )
         
@@ -177,21 +188,25 @@ with tab1:
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                if st.button("💾 Salvează prețuri", type="secondary"):
-                    # Salvează prețurile actualizate
+                if st.button("💾 Salvează prețuri și PO", type="secondary"):
+                    # Salvează prețurile și PO Client actualizate
                     try:
                         for idx, row in edited_df.iterrows():
                             comanda_id = row["ID"]
                             pret_nou = row["Preț"]
+                            po_client_nou = row["PO Client"] if row["PO Client"] != "-" else None
                             comanda = session.query(Comanda).get(comanda_id)
-                            if comanda and pret_nou != (comanda.pret or 0):
-                                comanda.pret = pret_nou
+                            if comanda:
+                                if pret_nou != (comanda.pret or 0):
+                                    comanda.pret = pret_nou
+                                if po_client_nou != comanda.po_client:
+                                    comanda.po_client = po_client_nou
                         session.commit()
-                        st.success("Prețurile au fost salvate!")
+                        st.success("Prețurile și PO Client au fost salvate!")
                         st.rerun()
                     except Exception as e:
                         session.rollback()
-                        st.error(f"Eroare la salvarea prețurilor: {e}")
+                        st.error(f"Eroare la salvare: {e}")
             
             with col2:
                 # Export Excel pentru comenzile selectate

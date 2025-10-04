@@ -5,8 +5,54 @@ from datetime import datetime
 from models import get_session
 from models.stoc import Stoc
 from models.hartie import Hartie
+import os
+from dotenv import load_dotenv
+
+# Încarcă variabilele de mediu
+load_dotenv()
 
 st.set_page_config(page_title="Gestiune Stoc", page_icon="📦")
+
+# Adăugare protecție cu parolă
+def check_password():
+    """Returnează `True` dacă utilizatorul are parola corectă."""
+    def password_entered():
+        # Verifică dacă parola introdusă este corectă
+        module_password = os.getenv("MODULE_PASSWORD", "potypoc")
+        if st.session_state["password"] == module_password:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Nu păstra parola în session_state
+        else:
+            st.session_state["password_correct"] = False
+
+    # Dacă parolă este corectă și salvată în session_state, nu solicita din nou 
+    if "password_correct" in st.session_state and st.session_state["password_correct"]:
+        return True
+
+    # Afișează formular pentru parolă
+    st.title("Gestiune Stoc")
+    st.subheader("Această secțiune este protejată")
+    st.write("Introduceți parola pentru a accesa secțiunea de gestiune stoc:")
+    
+    # Formular pentru parolă
+    st.text_input(
+        "Parolă", 
+        type="password", 
+        key="password",
+        on_change=password_entered,
+        label_visibility="collapsed"
+    )
+    
+    if "password_correct" in st.session_state:
+        if not st.session_state["password_correct"]:
+            st.error("Parolă incorectă!")
+            return False
+        
+    return False
+
+# Verifică parola înainte de a afișa conținutul
+if not check_password():
+    st.stop()  # Oprește execuția dacă parola este incorectă
 
 st.title("Gestiune Stoc")
 

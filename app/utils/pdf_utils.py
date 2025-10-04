@@ -17,13 +17,14 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     buffer = io.BytesIO()
     
     # Configurare document - A5 format (148 x 210 mm)
+    # Margini: 15mm stânga (pentru găurire/arhivare), 5mm dreapta, 5mm sus/jos
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A5,
-        rightMargin=10*mm,
-        leftMargin=10*mm,
-        topMargin=10*mm,
-        bottomMargin=10*mm
+        rightMargin=5*mm,
+        leftMargin=15*mm,
+        topMargin=5*mm,
+        bottomMargin=5*mm
     )
     
     # Stiluri
@@ -39,7 +40,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     header_table = Table(header_data, colWidths=[6.4*cm, 6.4*cm])
     header_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('ALIGN', (0, 0), (0, 0), 'LEFT'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -47,7 +48,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
         ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),  # Fundal gri deschis
     ]))
     story.append(header_table)
-    story.append(Spacer(1, 5*mm))
+    story.append(Spacer(1, 2*mm))
     
     # BENEFICIAR
     beneficiar_data = [
@@ -56,16 +57,16 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     beneficiar_table = Table(beneficiar_data, colWidths=[12.8*cm])
     beneficiar_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(beneficiar_table)
-    story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 1.5*mm))
     
     # LUCRARE și PO CLIENT
     lucrare_data = [
@@ -75,34 +76,35 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     lucrare_table = Table(lucrare_data, colWidths=[12.8*cm])
     lucrare_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(lucrare_table)
-    story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 1.5*mm))
     
-    # TIRAJ
+    # TIRAJ și DATA
+    data_comanda = comanda.data.strftime("%d-%m-%Y")
     tiraj_data = [
-        [f"TIRAJ: {comanda.tiraj}"]
+        [f"TIRAJ: {comanda.tiraj}", f"DATA: {data_comanda}"]
     ]
-    tiraj_table = Table(tiraj_data, colWidths=[12.8*cm])
+    tiraj_table = Table(tiraj_data, colWidths=[6.4*cm, 6.4*cm])
     tiraj_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(tiraj_table)
-    story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 1.5*mm))
     
     # DESCRIERE LUCRARE (mai mare cu bordură)
     descriere_text = comanda.descriere_lucrare or ""
@@ -112,22 +114,22 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
         [f"Format: {comanda.latime} x {comanda.inaltime} mm / Nr. de pagini: {comanda.nr_pagini}"],
         [f"GREUTATE (g): {comanda.greutate:.2f}" if comanda.greutate else "GREUTATE (g): -"]
     ]
-    descriere_table = Table(descriere_data, colWidths=[12.8*cm], rowHeights=[8*mm, 20*mm, 8*mm, 8*mm])
+    descriere_table = Table(descriere_data, colWidths=[12.8*cm], rowHeights=[5*mm, 10*mm, 5*mm, 5*mm])
     descriere_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),  # Prima linie bold
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),     # Restul normal
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),     # Grid pe toate celulele
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ('BACKGROUND', (0, 0), (0, 0), colors.lightgrey),  # Header cu fundal gri
     ]))
     story.append(descriere_table)
-    story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 1.5*mm))
     
     # CERTIFICARE FSC
     fsc_checkbox = "[X]" if comanda.certificare_fsc_produs else "[ ]"
@@ -138,16 +140,16 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     fsc_table = Table(fsc_data, colWidths=[12.8*cm])
     fsc_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(fsc_table)
-    story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 1.5*mm))
     
     # COALA TIPAR, NR. CULORI și NR. PAG/COALA
     nr_pag_coala = getattr(comanda, 'nr_pagini_pe_coala', 2)
@@ -158,36 +160,49 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     coala_culori_table = Table(coala_culori_data, colWidths=[6.4*cm, 6.4*cm])
     coala_culori_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(coala_culori_table)
-    story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 1.5*mm))
     
     # HARTIE, NR. COLI TIPAR și COLI PRISOASE
+    # Folosim Paragraph pentru a permite text wrapping pe 2 rânduri
+    hartie_style = ParagraphStyle(
+        'HartieStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=7,
+        leading=9,
+        alignment=TA_LEFT
+    )
+    
+    hartie_paragraph = Paragraph(f"HARTIE/GRAMAJ: {hartie.sortiment} ({hartie.gramaj}g)", hartie_style)
+    
     hartie_coli_data = [
-        [f"HARTIE/GRAMAJ: {hartie.sortiment} ({hartie.gramaj}g)"],
-        [f"NR. COLI TIPAR: {comanda.total_coli or comanda.nr_coli_tipar or '-'}"],
+        [hartie_paragraph],
+        [f"NR. COLI TIPAR: {comanda.nr_coli_tipar or '-'}"],
         ["COLI PRISOASE: _____________"]
     ]
-    hartie_coli_table = Table(hartie_coli_data, colWidths=[12.8*cm])
+    hartie_coli_table = Table(hartie_coli_data, colWidths=[12.8*cm], rowHeights=[None, 5*mm, 5*mm])
     hartie_coli_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(hartie_coli_table)
-    story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 1.5*mm))
     
     # PLASTIFIERE
     plastifiere_data = [
@@ -196,16 +211,16 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     plastifiere_table = Table(plastifiere_data, colWidths=[12.8*cm])
     plastifiere_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(plastifiere_table)
-    story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 1.5*mm))
     
     # FINISARE cu checkboxuri
     big_checkbox = "[X]" if comanda.big else "[ ]"
@@ -219,7 +234,8 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     laminare_checkbox = "[X]" if comanda.laminare else "[ ]"
     taiere_checkbox = "[X]" if comanda.taiere_cutter else "[ ]"
     
-    finisare_line1 = f"FINISARE: Big {big_checkbox}  Capsat {capsat_checkbox}  Colturi rotunde {colturi_checkbox}  Perfor {perfor_checkbox}"
+    nr_biguri_text = f" ({comanda.nr_biguri})" if comanda.big and comanda.nr_biguri else ""
+    finisare_line1 = f"FINISARE: Big {big_checkbox}{nr_biguri_text}  Capsat {capsat_checkbox}  Colturi rotunde {colturi_checkbox}  Perfor {perfor_checkbox}"
     finisare_line2 = f"{spiralare_checkbox} Spiralare  {stantare_checkbox} Stantare  {lipire_checkbox} Lipire {wobbler_checkbox} Codita wobbler"
     
     # Laminare cu detalii
@@ -238,33 +254,33 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     finisare_table = Table(finisare_data, colWidths=[12.8*cm])
     finisare_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 1.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5),
     ]))
     story.append(finisare_table)
-    story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 1.5*mm))
     
     # DETALII FINISARE și LIVRARE
     detalii_data = [
         [f"Detalii finisare: {comanda.detalii_finisare or ''}"],
         [f"Livrare: {comanda.detalii_livrare or ''}"]
     ]
-    detalii_table = Table(detalii_data, colWidths=[12.8*cm], rowHeights=[15*mm, 15*mm])
+    detalii_table = Table(detalii_data, colWidths=[12.8*cm], rowHeights=[10*mm, 10*mm])
     detalii_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(detalii_table)
     
