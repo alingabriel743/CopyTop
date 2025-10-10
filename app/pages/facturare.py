@@ -100,6 +100,16 @@ tab1, tab2, tab3 = st.tabs(["📝 Facturare Comenzi", "📊 Rapoarte Facturi", "
 with tab1:
     st.subheader("Selectare și Facturare Comenzi")
     
+    # Afișează mesajele de succes/eroare din session state
+    if 'facturare_success_msg' in st.session_state:
+        st.success(st.session_state.facturare_success_msg)
+        del st.session_state.facturare_success_msg
+    
+    if 'facturare_error_msg' in st.session_state:
+        for eroare in st.session_state.facturare_error_msg:
+            st.error(eroare)
+        del st.session_state.facturare_error_msg
+    
     # Selecția beneficiarului
     beneficiari = session.query(Beneficiar).all()
     if not beneficiari:
@@ -109,6 +119,12 @@ with tab1:
     beneficiar_options = [b.nume for b in beneficiari]
     selected_beneficiar = st.selectbox("Selectează beneficiar:", beneficiar_options)
     beneficiar_id = next((b.id for b in beneficiari if b.nume == selected_beneficiar), None)
+    
+    # Resetează session state dacă s-a schimbat beneficiarul
+    if 'last_beneficiar' not in st.session_state or st.session_state.last_beneficiar != selected_beneficiar:
+        st.session_state.last_beneficiar = selected_beneficiar
+        if 'comenzi_editor_data' in st.session_state:
+            del st.session_state.comenzi_editor_data
 
     # Obține comenzile nefacturate pentru beneficiar
     comenzi_nefacturate = session.query(Comanda).filter(
@@ -141,9 +157,13 @@ with tab1:
         # Afișează comenzile cu posibilitate de selecție
         df_comenzi = pd.DataFrame(comenzi_data)
         
+        # Inițializare session state pentru a păstra selecțiile
+        if 'comenzi_editor_data' not in st.session_state:
+            st.session_state.comenzi_editor_data = df_comenzi
+        
         # Editare DataFrame pentru selecție
         edited_df = st.data_editor(
-            df_comenzi,
+            st.session_state.comenzi_editor_data,
             hide_index=True,
             use_container_width=True,
             column_config={
@@ -173,6 +193,9 @@ with tab1:
             disabled=["Nr. Comandă", "Data", "Nume Lucrare", "Tiraj", "FSC", "Cod FSC", "Certificare FSC"],
             key="comenzi_selector"
         )
+        
+        # Actualizează session state cu datele editate
+        st.session_state.comenzi_editor_data = edited_df
         
         # Comenzi selectate
         comenzi_selectate = edited_df[edited_df["✓"] == True]
@@ -245,7 +268,8 @@ with tab1:
                     worksheet.set_column('E:E', 20)  # Certificare FSC
                     worksheet.set_column('F:F', 20)  # PO Client
                 
-                # Download button
+            
+            with col3:
                 st.download_button(
                     label="📊 Export Excel",
                     data=buffer.getvalue(),
@@ -253,17 +277,32 @@ with tab1:
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
             
-            with col3:
-                if st.button("✅ Facturează comenzile selectate", type="primary"):
+            # Câmpuri pentru facturare - plasate în afara coloanelor
+            st.markdown("---")
+            st.markdown("### Detalii factură")
+            
+            col_fact1, col_fact2 = st.columns(2)
+            with col_fact1:
+                nr_factura_input = st.text_input("Număr factură:", key="nr_factura_input")
+            with col_fact2:
+                data_facturare_input = st.date_input("Data facturare:", value=datetime.now(), key="data_facturare_input")
+            
+            if st.button("✅ Facturează comenzile selectate", type="primary", use_container_width=True):
                     # Verifică prețurile
                     comenzi_fara_pret = comenzi_selectate[comenzi_selectate["Preț"] == 0]
                     if len(comenzi_fara_pret) > 0:
                         st.error(f"⚠️ {len(comenzi_fara_pret)} comenzi nu au preț setat!")
+                    elif not nr_factura_input or nr_factura_input.strip() == "":
+                        st.error("⚠️ Trebuie să introduci numărul facturii!")
                     else:
                         # Procesează facturarea
                         try:
                             comenzi_procesate = 0
                             erori = []
+                            
+                            # Creează un placeholder pentru mesaje
+                            status_placeholder = st.empty()
+                            status_placeholder.info("⏳ Se procesează facturarea...")
                             
                             for idx, row in comenzi_selectate.iterrows():
                                 comanda_id = row["ID"]
@@ -285,18 +324,24 @@ with tab1:
                                                 hartie.stoc -= consum_hartie
                                                 hartie.greutate = hartie.calculeaza_greutate()
                                     
-                                    # Marchează ca facturată
+                                    # Marchează ca facturată și salvează detaliile facturii
                                     comanda.facturata = True
+                                    comanda.nr_factura = nr_factura_input
+                                    comanda.data_facturare = data_facturare_input
+                                    comanda.stare = "Facturată"  # Schimbă starea automat la Facturată
                                     comenzi_procesate += 1
                             
                             session.commit()
                             
+                            # Salvează mesajul în session state pentru a-l afișa după rerun
                             if comenzi_procesate > 0:
-                                st.success(f"✅ {comenzi_procesate} comenzi au fost facturate cu succes!")
+                                st.session_state.facturare_success_msg = f"✅ {comenzi_procesate} comenzi au fost facturate cu succes cu factura {nr_factura_input}!"
+                                # Resetează session state după facturare cu succes
+                                if 'comenzi_editor_data' in st.session_state:
+                                    del st.session_state.comenzi_editor_data
                             
                             if erori:
-                                for eroare in erori:
-                                    st.error(eroare)
+                                st.session_state.facturare_error_msg = erori
                             
                             st.rerun()
                             
@@ -547,9 +592,12 @@ with tab3:
                                             hartie.stoc += consum_hartie
                                             hartie.greutate = hartie.calculeaza_greutate()
                                     
-                                    # Anulează factura
+                                    # Anulează factura și șterge detaliile facturii
                                     comanda.facturata = False
                                     comanda.pret = None
+                                    comanda.nr_factura = None
+                                    comanda.data_facturare = None
+                                    comanda.stare = "Finalizată"  # Revine la starea Finalizată când se anulează factura
                                     
                                     session.commit()
                                     st.success("✅ Factura a fost anulată și stocul a fost restituit!")

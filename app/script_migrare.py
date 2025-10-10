@@ -92,6 +92,25 @@ def migrate_comenzi_table_v4(cursor):
         cursor.execute("ALTER TABLE comenzi ADD COLUMN data_facturare DATE")
         logger.info("✅ Adăugată coloana 'data_facturare'")
 
+def migrate_comenzi_table_v5(cursor):
+    """Adaugă câmpul stare în tabela comenzi pentru gestionarea stărilor comenzilor"""
+    logger.info("🔄 Migrare tabelă 'comenzi' - V5...")
+    
+    # Adaugă coloana stare
+    if not check_column_exists(cursor, 'comenzi', 'stare'):
+        cursor.execute("ALTER TABLE comenzi ADD COLUMN stare VARCHAR(20) DEFAULT 'In lucru' NOT NULL")
+        logger.info("✅ Adăugată coloana 'stare'")
+        
+        # Actualizează starea comenzilor existente bazat pe câmpul facturata
+        cursor.execute("""
+            UPDATE comenzi 
+            SET stare = CASE 
+                WHEN facturata = TRUE THEN 'Facturată'
+                ELSE 'In lucru'
+            END
+        """)
+        logger.info("✅ Actualizate stările comenzilor existente bazat pe status facturare")
+
 def main():
     """Funcția principală de migrare V3"""
     logger.info("🚀 Începe migrarea bazei de date Copy Top v3.0")
@@ -154,6 +173,24 @@ def main():
             logger.info("🎉 Migrarea v4.0 s-a finalizat cu succes!")
         else:
             logger.info("✅ Migrarea v4.0 a fost deja aplicată")
+        
+        # Verifică dacă migrarea v5 a fost deja aplicată
+        cursor.execute("SELECT version FROM migration_history WHERE version = 'v5.0'")
+        if not cursor.fetchone():
+            logger.info("🔄 Aplicare migrare v5.0...")
+            
+            # Aplicare migrări v5
+            migrate_comenzi_table_v5(cursor)
+            
+            # Înregistrează migrarea v5
+            cursor.execute("""
+                INSERT INTO migration_history (version, description) 
+                VALUES ('v5.0', 'Adăugare câmp stare pentru gestionarea stărilor comenzilor (In lucru, Finalizată, Facturată)')
+            """)
+            logger.info("📝 Migrarea v5.0 înregistrată în istoric")
+            logger.info("🎉 Migrarea v5.0 s-a finalizat cu succes!")
+        else:
+            logger.info("✅ Migrarea v5.0 a fost deja aplicată")
         
         logger.info("🎉 Toate migrările s-au finalizat cu succes!")
         

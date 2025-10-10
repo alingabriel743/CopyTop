@@ -66,6 +66,7 @@ class Comanda(Base):
     facturata = Column(Boolean, nullable=False, default=False)
     nr_factura = Column(String(50), nullable=True)  # Număr factură
     data_facturare = Column(Date, nullable=True)  # Data facturării
+    stare = Column(String(20), nullable=False, default="In lucru")  # Stare: "In lucru", "Finalizată", "Facturată"
     
     # Relații
     beneficiar = relationship("Beneficiar", back_populates="comenzi")

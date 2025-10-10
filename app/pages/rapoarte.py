@@ -125,7 +125,7 @@ with tab1:
                     data.append({
                         "Sortiment Hârtie": hartie,
                         "Cantitate (coli)": f"{info['cantitate']:.2f}",
-                        "Greutate (kg)": f"{info['greutate']:.2f}",
+                        "Greutate (kg)": f"{info['greutate']:.3f}",
                         "Comenzi": len(set(info["comenzi"]))
                     })
                 
@@ -297,7 +297,7 @@ with tab3:
                 "FSC Materie Primă": "Da" if h.fsc_materie_prima else "Nu",  # CORECTAT
                 "Cod FSC": h.cod_fsc_materie_prima or "-",  # CORECTAT
                 "Stoc (coli)": round(h.stoc, 2),
-                "Greutate totală (kg)": round(h.greutate or 0.0, 2)
+                "Greutate totală (kg)": round(h.greutate or 0.0, 3)
             })
 
         df_stoc = pd.DataFrame(data)

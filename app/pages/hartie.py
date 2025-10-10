@@ -103,7 +103,7 @@ with tab1:
                 "Gramaj": f"{hartie.gramaj} g/m²",
                 "Format": hartie.format_hartie,
                 "Stoc": f"{int(hartie.stoc) if hartie.stoc.is_integer() else hartie.stoc} coli",
-                "Greutate": f"{hartie.greutate:.2f} kg",
+                "Greutate": f"{hartie.greutate:.3f} kg",
                 "FSC Materie Primă": certificare,
                 "Cod FSC": hartie.cod_fsc_materie_prima or "-",
                 "Certificare": hartie.certificare_fsc_materie_prima or "-"
@@ -155,7 +155,7 @@ with tab2:
         
         # Calculare greutate
         greutate = dimensiune_1 * dimensiune_2 * gramaj * stoc / 10**7
-        st.write(f"Greutate calculată: {greutate:.2f} kg")
+        st.write(f"Greutate calculată: {greutate:.3f} kg")
         
         # Afișare informații FSC selectate (dacă există)
         if has_fsc and cod_fsc and certificare_fsc:
@@ -242,7 +242,7 @@ with tab3:
                 
                 # Calculare greutate
                 greutate = dimensiune_1 * dimensiune_2 * gramaj * stoc / 10**7
-                st.write(f"Greutate calculată: {greutate:.2f} kg")
+                st.write(f"Greutate calculată: {greutate:.3f} kg")
                 
                 col1, col2 = st.columns(2)
                 with col1:
