@@ -91,7 +91,8 @@ with tab1:
                 "Gramaj": f"{intrare.hartie.gramaj} g/m²",
                 "Cantitate Intrată": f"{int(intrare.cantitate) if intrare.cantitate == int(intrare.cantitate) else intrare.cantitate} coli",
                 "Nr. Factură": intrare.nr_factura,
-                "Furnizor": intrare.furnizor  # Adăugat furnizor
+                "Furnizor": intrare.furnizor,
+                "Cod Certificare": intrare.cod_certificare or "-"
             })
         
         # Afișare tabel
@@ -122,12 +123,15 @@ with tab2:
             hartie_id = int(selected_hartie.split(" - ")[0])
             
             # Detalii intrare
-            cantitate = st.number_input("Cantitate (coli)*:", min_value=0.1, step=0.1, value=100.0)
-            nr_factura = st.text_input("Număr factură achiziție*:")
+            col1, col2 = st.columns(2)
+            with col1:
+                cantitate = st.number_input("Cantitate (coli)*:", min_value=0.1, step=0.1, value=100.0)
+            with col2:
+                nr_factura = st.text_input("Număr factură achiziție*:")
             
             # Lista furnizorilor
-            furnizori = ["Antalis", "Glass-Co Industries", "Romanian Paper Distribution", 
-                        "Europapier", "Romprix", "GPV", "Alt furnizor"]
+            furnizori = ["Antalis International SRL", "Glass-Co Industries SRL", "Romanian Paper Distribution SRL", 
+                        "AKI-Labels Bucharest SRL", "Europapier Romania S.R.L.", "Alt furnizor"]
             furnizor_selectat = st.selectbox("Furnizor*:", furnizori)
             
             # Dacă selectează "Alt furnizor", permite introducere manuală
@@ -136,7 +140,11 @@ with tab2:
             else:
                 furnizor = furnizor_selectat
             
-            data = st.date_input("Data intrare*:", value=datetime.now())
+            col1, col2 = st.columns(2)
+            with col1:
+                data = st.date_input("Data intrare*:", value=datetime.now())
+            with col2:
+                cod_certificare = st.text_input("Cod certificare furnizor:", placeholder="Ex: GV-COC-101533")
             
             # Info hartie selectată
             hartie = session.query(Hartie).get(hartie_id)
@@ -163,6 +171,7 @@ with tab2:
                         cantitate=cantitate,
                         nr_factura=nr_factura,
                         furnizor=furnizor,
+                        cod_certificare=cod_certificare if cod_certificare else None,
                         data=data
                     )
                     session.add(intrare)

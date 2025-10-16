@@ -111,6 +111,15 @@ def migrate_comenzi_table_v5(cursor):
         """)
         logger.info("✅ Actualizate stările comenzilor existente bazat pe status facturare")
 
+def migrate_stoc_table_v6(cursor):
+    """Adaugă câmpul cod_certificare în tabela stoc pentru intrările de hârtie"""
+    logger.info("🔄 Migrare tabelă 'stoc' - V6...")
+    
+    # Adaugă coloana cod_certificare
+    if not check_column_exists(cursor, 'stoc', 'cod_certificare'):
+        cursor.execute("ALTER TABLE stoc ADD COLUMN cod_certificare VARCHAR(100)")
+        logger.info("✅ Adăugată coloana 'cod_certificare' în tabela stoc")
+
 def main():
     """Funcția principală de migrare V3"""
     logger.info("🚀 Începe migrarea bazei de date Copy Top v3.0")
@@ -191,6 +200,24 @@ def main():
             logger.info("🎉 Migrarea v5.0 s-a finalizat cu succes!")
         else:
             logger.info("✅ Migrarea v5.0 a fost deja aplicată")
+        
+        # Verifică dacă migrarea v6 a fost deja aplicată
+        cursor.execute("SELECT version FROM migration_history WHERE version = 'v6.0'")
+        if not cursor.fetchone():
+            logger.info("🔄 Aplicare migrare v6.0...")
+            
+            # Aplicare migrări v6
+            migrate_stoc_table_v6(cursor)
+            
+            # Înregistrează migrarea v6
+            cursor.execute("""
+                INSERT INTO migration_history (version, description) 
+                VALUES ('v6.0', 'Adăugare câmp cod_certificare în tabela stoc pentru intrările lunare de hârtie')
+            """)
+            logger.info("📝 Migrarea v6.0 înregistrată în istoric")
+            logger.info("🎉 Migrarea v6.0 s-a finalizat cu succes!")
+        else:
+            logger.info("✅ Migrarea v6.0 a fost deja aplicată")
         
         logger.info("🎉 Toate migrările s-au finalizat cu succes!")
         

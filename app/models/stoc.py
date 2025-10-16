@@ -12,6 +12,7 @@ class Stoc(Base):
     cantitate = Column(Float, nullable=False)
     nr_factura = Column(String(50), nullable=False)
     furnizor = Column(String(100), nullable=False)
+    cod_certificare = Column(String(100), nullable=True)  # Cod certificare furnizor
     data = Column(Date, nullable=False, default=datetime.now().date)
     
     # Relații

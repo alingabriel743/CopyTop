@@ -348,7 +348,8 @@ with tab2:
     nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
     coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=0, help="Coli suplimentare pentru prisos")
     total_coli = nr_coli_tipar + coli_prisoase
-    greutate = latime * inaltime * nr_pagini * indice_corectie * hartie_selectata.gramaj * tiraj / (2 * 10**9)
+    # Greutate în kg cu 3 zecimale rotunjite în sus
+    greutate = math.ceil(latime * inaltime * nr_pagini * indice_corectie * hartie_selectata.gramaj * tiraj / (2 * 10**9) * 1000) / 1000
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -356,7 +357,7 @@ with tab2:
     with col2:
         st.metric("Total coli", total_coli)
     with col3:
-        st.metric("Greutate estimată", f"{greutate:.2f} g")
+        st.metric("Greutate estimată", f"{greutate:.3f} kg")
 
     # Calculează coli mari pentru compatibilitate
     coli_mari = total_coli / indice_coala if indice_coala > 0 else None
@@ -553,7 +554,24 @@ with tab3:
                         tip_fsc_index = CERTIFICARI_FSC_MATERIE_PRIMA.index(comanda.tip_certificare_fsc_produs) if comanda.tip_certificare_fsc_produs in CERTIFICARI_FSC_MATERIE_PRIMA else 0
                         tip_certificare_fsc_produs = st.selectbox("Tip certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA, index=tip_fsc_index, key="edit_tip_fsc")
                 
-                with st.form("edit_comanda_form"):
+                # Opțiuni Big și Laminare - OUTSIDE form for dynamic behavior
+                st.markdown("### Opțiuni Finisare Dinamice")
+                col1, col2 = st.columns(2)
+                with col1:
+                    big = st.checkbox("Big", value=comanda.big, key="edit_big_checkbox")
+                    nr_biguri = None
+                    if big:
+                        nr_biguri = st.number_input("Număr biguri:", min_value=1, value=comanda.nr_biguri or 2, key="edit_nr_biguri")
+                
+                with col2:
+                    laminare = st.checkbox("Laminare", value=comanda.laminare, key="edit_laminare_checkbox")
+                    format_laminare = numar_laminari = None
+                    if laminare:
+                        format_index = FORMATE_LAMINARE.index(comanda.format_laminare) if comanda.format_laminare in FORMATE_LAMINARE else 0
+                        format_laminare = st.selectbox("Format laminare*:", FORMATE_LAMINARE, index=format_index, key="edit_format_laminare")
+                        numar_laminari = st.number_input("Număr laminări:", min_value=1, value=comanda.numar_laminari or 1, key="edit_numar_laminari")
+                
+                with st.form("edit_comanda_main_form"):
                     st.markdown("### Informații de bază")
                     col1, col2, col3 = st.columns(3)
                     with col1:
@@ -598,28 +616,9 @@ with tab3:
 
                     descriere_lucrare = st.text_area("Descriere lucrare:", value=comanda.descriere_lucrare or "", height=100)
                     
-                        # Display FSC info if selected
+                    # Display FSC info if selected
                     if certificare_fsc_produs and cod_fsc_produs and tip_certificare_fsc_produs:
                         st.info(f"🌿 FSC selectat: {cod_fsc_produs} - {tip_certificare_fsc_produs}")
-                
-                # Opțiuni Big și Laminare - OUTSIDE form for dynamic behavior
-                st.markdown("### Opțiuni Finisare Dinamice")
-                col1, col2 = st.columns(2)
-                with col1:
-                    big = st.checkbox("Big", value=comanda.big, key="edit_big_checkbox")
-                    nr_biguri = None
-                    if big:
-                        nr_biguri = st.number_input("Număr biguri:", min_value=1, value=comanda.nr_biguri or 2, key="edit_nr_biguri")
-                
-                with col2:
-                    laminare = st.checkbox("Laminare", value=comanda.laminare, key="edit_laminare_checkbox")
-                    format_laminare = numar_laminari = None
-                    if laminare:
-                        format_index = FORMATE_LAMINARE.index(comanda.format_laminare) if comanda.format_laminare in FORMATE_LAMINARE else 0
-                        format_laminare = st.selectbox("Format laminare*:", FORMATE_LAMINARE, index=format_index, key="edit_format_laminare")
-                        numar_laminari = st.number_input("Număr laminări:", min_value=1, value=comanda.numar_laminari or 1, key="edit_numar_laminari")
-                
-                with st.form("edit_comanda_form"):
                     st.markdown("### Hârtie și Tipar")
                     # Selectare hârtie cu logica FSC
                     hartii = session.query(Hartie).filter(Hartie.stoc > 0).all()
@@ -666,7 +665,8 @@ with tab3:
                         nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
                         coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=comanda.coli_prisoase or 0)
                         total_coli = nr_coli_tipar + coli_prisoase
-                        greutate = latime * inaltime * nr_pagini * indice_corectie * hartie_selectata.gramaj * tiraj / (2 * 10**9)
+                        # Greutate în kg cu 3 zecimale rotunjite în sus
+                        greutate = math.ceil(latime * inaltime * nr_pagini * indice_corectie * hartie_selectata.gramaj * tiraj / (2 * 10**9) * 1000) / 1000
 
                         col1, col2, col3 = st.columns(3)
                         with col1:
@@ -674,7 +674,7 @@ with tab3:
                         with col2:
                             st.metric("Total coli", total_coli)
                         with col3:
-                            st.metric("Greutate estimată", f"{greutate:.2f} g")
+                            st.metric("Greutate estimată", f"{greutate:.3f} kg")
 
                         # Calculează coli mari pentru compatibilitate
                         coli_mari = total_coli / indice_coala if indice_coala > 0 else None
@@ -725,11 +725,11 @@ with tab3:
                         # Butoane salvare
                         col1, col2 = st.columns(2)
                         with col1:
-                            save_button = st.form_submit_button("💾 Salvează modificările", type="primary")
+                            save_button = st.form_submit_button("💾 Salvează modificările", type="primary", use_container_width=True)
                         with col2:
-                            cancel_button = st.form_submit_button("❌ Anulează")
+                            cancel_button = st.form_submit_button("❌ Anulează", use_container_width=True)
 
-                        if save_button:
+                    if save_button:
                             # Validări
                             if nr_pagini % 2 != 0:
                                 st.error("Numărul de pagini trebuie să fie multiplu de 2!")
@@ -794,8 +794,8 @@ with tab3:
                                     session.rollback()
                                     st.error(f"Eroare la actualizare: {e}")
 
-                        if cancel_button:
-                            st.rerun()
+                    if cancel_button:
+                        st.rerun()
             
             else:
                 # VIZUALIZARE NORMALĂ

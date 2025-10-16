@@ -74,7 +74,7 @@ st.title("Gestiune Hârtie")
 session = get_session()
 
 # Tabs pentru diferite acțiuni
-tab1, tab2, tab3 = st.tabs(["Lista Hârtie", "Adaugă Hârtie", "Editează/Șterge Hârtie"])
+tab1, tab2, tab3 = st.tabs(["Lista Hârtie", "Adaugă Hârtie", "Editează Hârtie"])
 
 with tab1:
     # Cod pentru listare hârtie
@@ -192,8 +192,8 @@ with tab2:
                     st.error(f"Eroare la adăugarea sortimentului de hârtie: {e}")
 
 with tab3:
-    # Cod pentru editare/ștergere hârtie
-    st.subheader("Editează sau Șterge Sortiment de Hârtie")
+    # Cod pentru editare hârtie
+    st.subheader("Editează Sortiment de Hârtie")
     
     # Selectare hârtie
     hartii = session.query(Hartie).all()
@@ -244,11 +244,7 @@ with tab3:
                 greutate = dimensiune_1 * dimensiune_2 * gramaj * stoc / 10**7
                 st.write(f"Greutate calculată: {greutate:.3f} kg")
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    update_button = st.form_submit_button("Actualizează Hârtie")
-                with col2:
-                    delete_button = st.form_submit_button("Șterge Hârtie")
+                update_button = st.form_submit_button("Actualizează Hârtie", type="primary", use_container_width=True)
                 
                 if update_button:
                     # Validare date
@@ -275,16 +271,9 @@ with tab3:
                         except Exception as e:
                             session.rollback()
                             st.error(f"Eroare la actualizarea sortimentului de hârtie: {e}")
-                
-                if delete_button:
-                    try:
-                        session.delete(hartie)
-                        session.commit()
-                        st.success(f"Sortimentul de hârtie '{hartie.sortiment}' a fost șters cu succes!")
-                        st.rerun()
-                    except Exception as e:
-                        session.rollback()
-                        st.error(f"Eroare la ștergerea sortimentului de hârtie: {e}")
+            
+            # Avertisment despre ștergere
+            st.warning("⚠️ **Notă:** Ștergerea sortimentelor de hârtie este dezactivată pentru a preveni conflictele cu comenzile existente. Dacă ai nevoie să ștergi date, folosește scriptul de resetare a bazei de date.")
 
 # Închidere sesiune
 session.close()
