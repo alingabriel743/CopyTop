@@ -14,6 +14,8 @@ load_dotenv()
 # Încărcare date despre formate
 formate_hartie = {
     "70 x 100": [70, 100],
+    "71 x 101": [71, 101],
+    "72 x 101": [72, 101],
     "72 x 102": [72, 102],
     "45 x 64": [45, 64],
     "SRA3": [32, 45],
@@ -74,7 +76,7 @@ st.title("Gestiune Hârtie")
 session = get_session()
 
 # Tabs pentru diferite acțiuni
-tab1, tab2, tab3 = st.tabs(["Lista Hârtie", "Adaugă Hârtie", "Editează Hârtie"])
+tab1, tab2, tab3, tab4 = st.tabs(["Lista Hârtie", "Adaugă Hârtie", "Editează Hârtie", "Intrări Hârtie"])
 
 with tab1:
     # Cod pentru listare hârtie
@@ -274,6 +276,117 @@ with tab3:
             
             # Avertisment despre ștergere
             st.warning("⚠️ **Notă:** Ștergerea sortimentelor de hârtie este dezactivată pentru a preveni conflictele cu comenzile existente. Dacă ai nevoie să ștergi date, folosește scriptul de resetare a bazei de date.")
+
+with tab4:
+    # Cod pentru înregistrare intrări hârtie
+    st.subheader("Înregistrare Intrare Hârtie")
+    
+    from models.stoc import Stoc
+    from datetime import datetime
+    
+    # Selectare sortiment hârtie
+    hartii = session.query(Hartie).all()
+    if not hartii:
+        st.warning("Nu există sortimente de hârtie în baza de date. Adaugă mai întâi un sortiment.")
+    else:
+        hartie_options = [f"{h.id} - {h.sortiment} ({h.format_hartie}, {h.gramaj}g)" for h in hartii]
+        selected_hartie_intrare = st.selectbox("Selectează sortiment hârtie*:", hartie_options, key="hartie_intrare")
+        
+        if selected_hartie_intrare:
+            hartie_id_intrare = int(selected_hartie_intrare.split(" - ")[0])
+            hartie_selectata = session.query(Hartie).get(hartie_id_intrare)
+            
+            # Afișare informații sortiment
+            st.info(f"📄 **Sortiment selectat:** {hartie_selectata.sortiment} | **Stoc actual:** {hartie_selectata.stoc:.2f} coli")
+            
+            # Formular pentru intrare
+            with st.form("intrare_hartie_form"):
+                st.markdown("### Detalii Intrare")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    data_intrare = st.date_input("Data intrare*:", value=datetime.now(), help="Data primirii hârtiei")
+                    nr_factura = st.text_input("Număr factură*:", placeholder="Ex: FAC-2024-001")
+                
+                with col2:
+                    furnizor = st.text_input("Furnizor*:", placeholder="Ex: SC Furnizor SRL")
+                    cod_certificare = st.text_input("Cod certificare:", placeholder="Ex: FSC-C123456")
+                
+                nr_coli = st.number_input("Număr coli*:", min_value=0.0, value=0.0, step=1.0, help="Numărul de coli primite")
+                
+                # Calculare greutate nouă
+                if nr_coli > 0:
+                    greutate_noua = hartie_selectata.dimensiune_1 * hartie_selectata.dimensiune_2 * hartie_selectata.gramaj * nr_coli / 10**7
+                    stoc_nou = hartie_selectata.stoc + nr_coli
+                    greutate_totala = hartie_selectata.greutate + greutate_noua
+                    
+                    st.markdown("### Previzualizare")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Stoc actual", f"{hartie_selectata.stoc:.2f} coli")
+                    with col2:
+                        st.metric("Stoc nou", f"{stoc_nou:.2f} coli", delta=f"+{nr_coli:.2f}")
+                    with col3:
+                        st.metric("Greutate totală", f"{greutate_totala:.3f} kg", delta=f"+{greutate_noua:.3f}")
+                
+                submitted = st.form_submit_button("✅ Validează Intrarea", type="primary", use_container_width=True)
+                
+                if submitted:
+                    # Validare date
+                    if not nr_factura or not nr_factura.strip():
+                        st.error("Numărul facturii este obligatoriu!")
+                    elif not furnizor or not furnizor.strip():
+                        st.error("Furnizorul este obligatoriu!")
+                    elif nr_coli <= 0:
+                        st.error("Numărul de coli trebuie să fie mai mare decât 0!")
+                    else:
+                        try:
+                            # Creează intrarea în stoc
+                            intrare_stoc = Stoc(
+                                hartie_id=hartie_id_intrare,
+                                cantitate=nr_coli,
+                                nr_factura=nr_factura.strip(),
+                                furnizor=furnizor.strip(),
+                                cod_certificare=cod_certificare.strip() if cod_certificare and cod_certificare.strip() else None,
+                                data=data_intrare
+                            )
+                            session.add(intrare_stoc)
+                            
+                            # Actualizează stocul hârtiei
+                            hartie_selectata.stoc += nr_coli
+                            hartie_selectata.greutate = hartie_selectata.calculeaza_greutate()
+                            
+                            session.commit()
+                            st.success(f"✅ Intrarea de {nr_coli:.2f} coli pentru '{hartie_selectata.sortiment}' a fost înregistrată cu succes!")
+                            st.balloons()
+                            st.rerun()
+                        except Exception as e:
+                            session.rollback()
+                            st.error(f"Eroare la înregistrarea intrării: {e}")
+    
+    # Afișare istoric intrări
+    st.markdown("---")
+    st.markdown("### Istoric Intrări Recente")
+    
+    from models.stoc import Stoc
+    intrari_recente = session.query(Stoc).join(Hartie).order_by(Stoc.data.desc()).limit(20).all()
+    
+    if intrari_recente:
+        data_intrari = []
+        for intrare in intrari_recente:
+            data_intrari.append({
+                "Data": intrare.data.strftime("%d-%m-%Y"),
+                "Sortiment": intrare.hartie.sortiment,
+                "Cantitate": f"{intrare.cantitate:.2f} coli",
+                "Nr. Factură": intrare.nr_factura,
+                "Furnizor": intrare.furnizor,
+                "Cod Certificare": intrare.cod_certificare or "-"
+            })
+        
+        df_intrari = pd.DataFrame(data_intrari)
+        st.dataframe(df_intrari, use_container_width=True)
+    else:
+        st.info("Nu există intrări înregistrate.")
 
 # Închidere sesiune
 session.close()

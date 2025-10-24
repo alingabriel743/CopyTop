@@ -110,8 +110,8 @@ with tab1:
             st.error(eroare)
         del st.session_state.facturare_error_msg
     
-    # Selecția beneficiarului
-    beneficiari = session.query(Beneficiar).all()
+    # Selecția beneficiarului - sortați alfabetic
+    beneficiari = session.query(Beneficiar).order_by(Beneficiar.nume).all()
     if not beneficiari:
         st.warning("Nu există beneficiari în baza de date.")
         st.stop()
@@ -181,7 +181,7 @@ with tab1:
                     "Preț (RON)",
                     help="Editează prețul pentru fiecare comandă",
                     min_value=0.0,
-                    step=10.0,
+                    step=0.01,
                     format="%.2f"
                 ),
                 "PO Client": st.column_config.TextColumn(
@@ -395,10 +395,10 @@ with tab2:
         start_date = data_start
         end_date = data_sfarsit
     
-    # Filtrare beneficiar
+    # Filtrare beneficiar - sortați alfabetic
     beneficiar_raport = st.selectbox(
         "Beneficiar:",
-        ["Toți beneficiarii"] + [b.nume for b in session.query(Beneficiar).all()]
+        ["Toți beneficiarii"] + [b.nume for b in session.query(Beneficiar).order_by(Beneficiar.nume).all()]
     )
     
     # Construire query

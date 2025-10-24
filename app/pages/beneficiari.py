@@ -21,13 +21,13 @@ with tab1:
     # Opțiuni căutare
     search_query = st.text_input("Caută beneficiar după nume:")
     
-    # Obținere date
+    # Obținere date - sortate alfabetic
     if search_query:
         beneficiari = session.query(Beneficiar).filter(
             Beneficiar.nume.ilike(f"%{search_query}%")
-        ).all()
+        ).order_by(Beneficiar.nume).all()
     else:
-        beneficiari = session.query(Beneficiar).all()
+        beneficiari = session.query(Beneficiar).order_by(Beneficiar.nume).all()
     
     # Construire DataFrame pentru afișare
     if beneficiari:
@@ -89,8 +89,8 @@ with tab3:
     # Cod pentru editare/ștergere beneficiar
     st.subheader("Editează sau Șterge Beneficiar")
     
-    # Selectare beneficiar
-    beneficiari = session.query(Beneficiar).all()
+    # Selectare beneficiar - sortați alfabetic
+    beneficiari = session.query(Beneficiar).order_by(Beneficiar.nume).all()
     if not beneficiari:
         st.info("Nu există beneficiari în baza de date.")
     else:

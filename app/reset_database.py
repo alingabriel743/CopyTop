@@ -1,6 +1,6 @@
 """
-Script pentru resetarea bazei de date - șterge toate comenzile și hârtiile
-ATENȚIE: Acest script va șterge TOATE datele din tabele!
+Script pentru ștergerea comenzilor din baza de date
+ATENȚIE: Acest script va șterge TOATE comenzile!
 """
 
 import psycopg2
@@ -34,11 +34,9 @@ def reset_database():
         logger.info("✅ Conectat la baza de date")
         
         # Confirmă acțiunea
-        print("\n⚠️  ATENȚIE! Acest script va șterge TOATE datele din următoarele tabele:")
+        print("\n⚠️  ATENȚIE! Acest script va șterge TOATE comenzile!")
         print("   - comenzi")
-        print("   - stoc")
-        print("   - hartie")
-        print("\nBeneficiarii NU vor fi șterși.\n")
+        print("\nBeneficiarii, hârtiile și stocul NU vor fi șterse.\n")
         
         confirm = input("Ești sigur că vrei să continui? Scrie 'DA' pentru confirmare: ")
         
@@ -46,33 +44,19 @@ def reset_database():
             logger.info("❌ Operațiune anulată de utilizator")
             return False
         
-        # Șterge comenzile (trebuie prima dată din cauza foreign key)
+        # Șterge comenzile
         logger.info("🗑️  Ștergere comenzi...")
         cursor.execute("DELETE FROM comenzi")
         comenzi_count = cursor.rowcount
         logger.info(f"✅ {comenzi_count} comenzi șterse")
         
-        # Șterge intrările de stoc
-        logger.info("🗑️  Ștergere intrări stoc...")
-        cursor.execute("DELETE FROM stoc")
-        stoc_count = cursor.rowcount
-        logger.info(f"✅ {stoc_count} intrări stoc șterse")
-        
-        # Șterge hârtiile
-        logger.info("🗑️  Ștergere hârtii...")
-        cursor.execute("DELETE FROM hartie")
-        hartie_count = cursor.rowcount
-        logger.info(f"✅ {hartie_count} hârtii șterse")
-        
-        # Resetează secvențele (pentru ID-uri)
-        logger.info("🔄 Resetare secvențe...")
+        # Resetează secvența pentru ID-uri comenzi
+        logger.info("🔄 Resetare secvență comenzi...")
         cursor.execute("ALTER SEQUENCE comenzi_id_seq RESTART WITH 1")
-        cursor.execute("ALTER SEQUENCE stoc_id_seq RESTART WITH 1")
-        cursor.execute("ALTER SEQUENCE hartie_id_seq RESTART WITH 1")
-        logger.info("✅ Secvențe resetate")
+        logger.info("✅ Secvență resetată")
         
-        logger.info("🎉 Baza de date a fost resetată cu succes!")
-        logger.info(f"📊 Rezumat: {comenzi_count} comenzi, {stoc_count} intrări stoc, {hartie_count} hârtii șterse")
+        logger.info("🎉 Comenzile au fost șterse cu succes!")
+        logger.info(f"📊 Rezumat: {comenzi_count} comenzi șterse")
         
         cursor.close()
         conn.close()
