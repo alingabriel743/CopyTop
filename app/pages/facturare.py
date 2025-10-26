@@ -590,11 +590,19 @@ with tab3:
                         consum_hartie = comanda.total_coli / indici_coala[comanda.coala_tipar]
                         st.info(f"Se vor restitui {consum_hartie:.2f} coli de hârtie în stoc")
                     
-                    if st.button("🚫 Anulează factura", type="secondary"):
-                        confirmare = st.checkbox("Confirm anularea facturii")
-                        
-                        if confirmare:
-                            if st.button("✅ Confirmă anularea", type="primary"):
+                    # Folosim session state pentru confirmarea anulării
+                    if f"cancel_invoice_confirm_{comanda.id}" not in st.session_state:
+                        st.session_state[f"cancel_invoice_confirm_{comanda.id}"] = False
+                    
+                    if not st.session_state[f"cancel_invoice_confirm_{comanda.id}"]:
+                        if st.button("🚫 Anulează factura", type="secondary", key=f"cancel_invoice_{comanda.id}"):
+                            st.session_state[f"cancel_invoice_confirm_{comanda.id}"] = True
+                            st.rerun()
+                    else:
+                        st.warning("⚠️ Ești sigur că vrei să anulezi această factură?")
+                        col_yes, col_no = st.columns(2)
+                        with col_yes:
+                            if st.button("✅ Da, anulează", key=f"confirm_cancel_yes_{comanda.id}", type="primary"):
                                 try:
                                     # Restituie stocul
                                     if comanda.total_coli and comanda.coala_tipar in indici_coala:
@@ -612,12 +620,17 @@ with tab3:
                                     comanda.stare = "Finalizată"  # Revine la starea Finalizată când se anulează factura
                                     
                                     session.commit()
+                                    st.session_state[f"cancel_invoice_confirm_{comanda.id}"] = False
                                     st.success("✅ Factura a fost anulată și stocul a fost restituit!")
                                     st.rerun()
                                     
                                 except Exception as e:
                                     session.rollback()
                                     st.error(f"Eroare la anulare: {e}")
+                        with col_no:
+                            if st.button("❌ Nu, renunță", key=f"confirm_cancel_no_{comanda.id}"):
+                                st.session_state[f"cancel_invoice_confirm_{comanda.id}"] = False
+                                st.rerun()
     else:
         st.info("Nu există facturi de modificat.")
 

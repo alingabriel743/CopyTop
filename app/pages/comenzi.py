@@ -543,6 +543,10 @@ with tab2:
                     # Salvează comanda în session state pentru export PDF
                     st.session_state.last_created_comanda = comanda
                     
+                    # Șterge comanda din session state pentru a reseta complet
+                    if 'last_created_comanda' in st.session_state:
+                        del st.session_state.last_created_comanda
+                    
                     st.success(f"Comanda #{numar_comanda_nou} - '{nume_lucrare}' a fost adăugată cu succes!")
                     st.balloons()
                     st.rerun()  # Resetează formularul pentru a preveni dublarea comenzilor
