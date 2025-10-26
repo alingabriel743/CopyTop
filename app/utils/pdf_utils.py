@@ -107,17 +107,17 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     
     # DESCRIERE LUCRARE (mai mare cu bordură)
     descriere_text = comanda.descriere_lucrare or ""
-    greutate_text = f"{comanda.greutate:.2f}" if comanda.greutate else "-"
+    greutate_text = f"{comanda.greutate:.3f}" if comanda.greutate else "-"
     descriere_data = [
         ["DESCRIERE LUCRARE"],
         [descriere_text],
-        [f"Format: {comanda.latime} x {comanda.inaltime} mm / Nr. pagini: {comanda.nr_pagini} / Greutate: {greutate_text} g"]
+        [f"Format: {comanda.latime} x {comanda.inaltime} mm / Nr. pagini: {comanda.nr_pagini} / Greutate: {greutate_text} kg"]
     ]
     descriere_table = Table(descriere_data, colWidths=[12.8*cm], rowHeights=[5*mm, 10*mm, 5*mm])
     descriere_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),  # Prima linie bold
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),     # Restul normal
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),     # Grid pe toate celulele

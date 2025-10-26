@@ -77,3 +77,12 @@ OPTIUNI_CULORI = [
     "K + 0",
     "0 + 0"
 ]
+
+# Furnizori și codurile lor de certificare
+FURNIZORI_CERTIFICARE = {
+    "Antalis International SRL": "BV-COC-101533",
+    "Glass-Co Industries SRL": "RINA-COC-000708",
+    "Romanian Paper Distribution SRL": "ISUD-COC-001699",
+    "Akt-Labels Bucharest SRL": "SGSCH-COC-011483",
+    "Europapier Romania S.R.L": "GFA-COC-901390-K"
+}

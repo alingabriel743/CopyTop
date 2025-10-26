@@ -120,6 +120,15 @@ def migrate_stoc_table_v6(cursor):
         cursor.execute("ALTER TABLE stoc ADD COLUMN cod_certificare VARCHAR(100)")
         logger.info("✅ Adăugată coloana 'cod_certificare' în tabela stoc")
 
+def migrate_hartie_table_v7(cursor):
+    """Adaugă câmpul furnizor în tabela hartie pentru asocierea cu furnizorul"""
+    logger.info("🔄 Migrare tabelă 'hartie' - V7...")
+    
+    # Adaugă coloana furnizor
+    if not check_column_exists(cursor, 'hartie', 'furnizor'):
+        cursor.execute("ALTER TABLE hartie ADD COLUMN furnizor VARCHAR(200)")
+        logger.info("✅ Adăugată coloana 'furnizor' în tabela hartie")
+
 def main():
     """Funcția principală de migrare V3"""
     logger.info("🚀 Începe migrarea bazei de date Copy Top v3.0")
@@ -218,6 +227,24 @@ def main():
             logger.info("🎉 Migrarea v6.0 s-a finalizat cu succes!")
         else:
             logger.info("✅ Migrarea v6.0 a fost deja aplicată")
+        
+        # Verifică dacă migrarea v7 a fost deja aplicată
+        cursor.execute("SELECT version FROM migration_history WHERE version = 'v7.0'")
+        if not cursor.fetchone():
+            logger.info("🔄 Aplicare migrare v7.0...")
+            
+            # Aplicare migrări v7
+            migrate_hartie_table_v7(cursor)
+            
+            # Înregistrează migrarea v7
+            cursor.execute("""
+                INSERT INTO migration_history (version, description) 
+                VALUES ('v7.0', 'Adăugare câmp furnizor în tabela hartie pentru asocierea cu furnizorul și codul de certificare')
+            """)
+            logger.info("📝 Migrarea v7.0 înregistrată în istoric")
+            logger.info("🎉 Migrarea v7.0 s-a finalizat cu succes!")
+        else:
+            logger.info("✅ Migrarea v7.0 a fost deja aplicată")
         
         logger.info("🎉 Toate migrările s-au finalizat cu succes!")
         

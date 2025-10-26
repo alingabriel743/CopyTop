@@ -116,9 +116,8 @@ with tab1:
         st.warning("Nu există beneficiari în baza de date.")
         st.stop()
 
-    beneficiar_options = [b.nume for b in beneficiari]
+    beneficiar_options = ["Toți beneficiarii"] + [b.nume for b in beneficiari]
     selected_beneficiar = st.selectbox("Selectează beneficiar:", beneficiar_options)
-    beneficiar_id = next((b.id for b in beneficiari if b.nume == selected_beneficiar), None)
     
     # Resetează session state dacă s-a schimbat beneficiarul
     if 'last_beneficiar' not in st.session_state or st.session_state.last_beneficiar != selected_beneficiar:
@@ -126,11 +125,19 @@ with tab1:
         if 'comenzi_editor_data' in st.session_state:
             del st.session_state.comenzi_editor_data
 
-    # Obține comenzile nefacturate pentru beneficiar
-    comenzi_nefacturate = session.query(Comanda).filter(
-        Comanda.beneficiar_id == beneficiar_id,
-        Comanda.facturata == False
-    ).all()
+    # Obține comenzile nefacturate și finalizate
+    if selected_beneficiar == "Toți beneficiarii":
+        comenzi_nefacturate = session.query(Comanda).filter(
+            Comanda.facturata == False,
+            Comanda.stare == "Finalizată"
+        ).all()
+    else:
+        beneficiar_id = next((b.id for b in beneficiari if b.nume == selected_beneficiar), None)
+        comenzi_nefacturate = session.query(Comanda).filter(
+            Comanda.beneficiar_id == beneficiar_id,
+            Comanda.facturata == False,
+            Comanda.stare == "Finalizată"
+        ).all()
 
     if not comenzi_nefacturate:
         st.info("Nu există comenzi nefacturate pentru acest beneficiar.")

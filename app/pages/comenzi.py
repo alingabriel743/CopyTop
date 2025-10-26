@@ -167,9 +167,9 @@ with tab1:
         beneficiar_options = ["Toți beneficiarii"] + [b.nume for b in beneficiari]
         selected_beneficiar = st.selectbox("Beneficiar:", beneficiar_options)
     with col4:
-        # Filtrare după stare
+        # Filtrare după stare - implicit "In lucru"
         stare_options = ["Toate stările", "In lucru", "Finalizată", "Facturată"]
-        selected_stare = st.selectbox("Stare:", stare_options)
+        selected_stare = st.selectbox("Stare:", stare_options, index=1)
     
     # Căutare după cuvinte cheie
     search_term = st.text_input("🔍 Caută în numele lucrării:", placeholder="Ex: Brosura, Flyer, etc.")
@@ -330,7 +330,7 @@ with tab2:
 
     st.markdown("### Hârtie și Tipar")
     # Selectare hârtie cu logica FSC
-    hartii = session.query(Hartie).filter(Hartie.stoc > 0).all()
+    hartii = session.query(Hartie).filter(Hartie.stoc > 0).order_by(Hartie.sortiment).all()
     
     if certificare_fsc_produs:
         # Filtrează doar hârtiile FSC
@@ -385,8 +385,48 @@ with tab2:
 
     # Calculează coli mari pentru compatibilitate
     coli_mari = total_coli / indice_coala if indice_coala > 0 else None
+    
+    # Calculează greutatea colilor mari și factorul de conversie
+    greutate_coli_mari = None
+    factor_conversie = None
+    
     if coli_mari:
-        st.info(f"**Coli mari necesare:** `{coli_mari:.2f}`")
+        # Extrage dimensiunile formatului de hârtie (ex: "70 x 100" -> 70, 100 cm)
+        try:
+            dimensiuni = format_hartie.lower().replace('cm', '').replace('mm', '').strip()
+            if 'x' in dimensiuni:
+                parts = dimensiuni.split('x')
+                latime_coala_cm = float(parts[0].strip())  # dimensiuni în cm
+                inaltime_coala_cm = float(parts[1].strip())  # dimensiuni în cm
+                
+                # Calculează greutatea colilor mari în kg
+                # Formula: (latime_cm * inaltime_cm * gramaj * numar_coli_mari) / 10^7
+                greutate_coli_mari = (latime_coala_cm * inaltime_coala_cm * hartie_selectata.gramaj * coli_mari) / 10**7
+                greutate_coli_mari = math.ceil(greutate_coli_mari * 1000) / 1000  # rotunjire la 3 zecimale
+                
+                # Calculează factorul de conversie
+                if greutate_coli_mari > 0:
+                    factor_conversie = greutate / greutate_coli_mari
+        except:
+            pass
+        
+        # Afișare informații
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.info(f"**Coli mari necesare:** `{coli_mari:.2f}`")
+        with col2:
+            if greutate_coli_mari:
+                st.info(f"**Greutate coli mari:** `{greutate_coli_mari:.3f} kg`")
+        with col3:
+            if factor_conversie:
+                st.info(f"**Factor conversie:** `{factor_conversie:.4f}`")
+        
+        # Validări și avertismente
+        if factor_conversie:
+            if factor_conversie > 1:
+                st.error("❌ **EROARE:** Factorul de conversie este mai mare decât 1! Verifică datele introduse - ceva este greșit!")
+            elif factor_conversie < 0.5:
+                st.error("⚠️ **ATENȚIE:** Factorul de conversie este mai mic decât 0.5! Verifică dacă toate datele sunt introduse corect!")
 
     st.markdown("### Finisare")
     col1, col2 = st.columns(2)
@@ -446,6 +486,8 @@ with tab2:
                 st.error("Pentru certificare FSC produs final, hârtia trebuie să fie certificată FSC materie primă!")
             elif not coale_tipar_compatibile or (coala_tipar and coala_tipar not in coale_tipar_compatibile):
                 st.error("Coală de tipar incompatibilă cu formatul de hârtie selectat!")
+            elif factor_conversie and factor_conversie > 1:
+                st.error("❌ **NU SE POATE INTRODUCE COMANDA!** Factorul de conversie este mai mare decât 1! Verifică datele introduse - ceva este greșit!")
             else:
                 try:
                     comanda = Comanda(
@@ -538,7 +580,18 @@ with tab2:
 with tab3:
     st.subheader("Editează sau Șterge Comandă")
     
-    comenzi = session.query(Comanda).join(Beneficiar).all()
+    # Filtrare comenzi - implicit "In lucru"
+    col1, col2 = st.columns(2)
+    with col1:
+        stare_filter_edit = st.selectbox("Filtrează după stare:", ["Toate stările", "In lucru", "Finalizată", "Facturată"], index=1, key="edit_stare_filter")
+    with col2:
+        pass  # Empty for spacing
+    
+    # Construire query cu filtru
+    if stare_filter_edit == "Toate stările":
+        comenzi = session.query(Comanda).join(Beneficiar).order_by(Comanda.numar_comanda.desc()).all()
+    else:
+        comenzi = session.query(Comanda).join(Beneficiar).filter(Comanda.stare == stare_filter_edit).order_by(Comanda.numar_comanda.desc()).all()
     
     if not comenzi:
         st.info("Nu există comenzi în baza de date.")
@@ -582,7 +635,7 @@ with tab3:
                 st.markdown("### Hârtie și Tipar")
                 
                 # Selectare hârtie cu logica FSC
-                hartii = session.query(Hartie).filter(Hartie.stoc > 0).all()
+                hartii = session.query(Hartie).filter(Hartie.stoc > 0).order_by(Hartie.sortiment).all()
                 
                 if certificare_fsc_produs:
                     # Filtrează doar hârtiile FSC
@@ -597,8 +650,15 @@ with tab3:
                         st.error("Nu există sortimente de hârtie disponibile în stoc.")
 
                 if hartii_disponibile:
-                    hartie_options_edit = [f"{h.id} - {h.sortiment} ({h.format_hartie}, {h.gramaj}g)" + (" - FSC" if h.fsc_materie_prima else "") for h in hartii_disponibile]
-                    hartie_index_edit = next((i for i, h in enumerate(hartii_disponibile) if h.id == comanda.hartie_id), 0)
+                    # Adaugă hârtia curentă în listă dacă nu este deja acolo (pentru cazul când hârtia nu mai are stoc)
+                    hartie_curenta = comanda.hartie
+                    if hartie_curenta not in hartii_disponibile:
+                        hartii_disponibile_cu_curenta = [hartie_curenta] + hartii_disponibile
+                    else:
+                        hartii_disponibile_cu_curenta = hartii_disponibile
+                    
+                    hartie_options_edit = [f"{h.id} - {h.sortiment} ({h.format_hartie}, {h.gramaj}g)" + (" - FSC" if h.fsc_materie_prima else "") for h in hartii_disponibile_cu_curenta]
+                    hartie_index_edit = next((i for i, h in enumerate(hartii_disponibile_cu_curenta) if h.id == comanda.hartie_id), 0)
                     selected_hartie_edit = st.selectbox("Sortiment hârtie*:", hartie_options_edit, index=hartie_index_edit, key="edit_hartie_select")
                     hartie_id_edit = int(selected_hartie_edit.split(" - ")[0])
                     hartie_selectata_edit = session.get(Hartie, hartie_id_edit)
@@ -852,23 +912,84 @@ with tab3:
                     st.write(f"**Echipament:** {comanda.echipament}")
                     st.write(f"**Data:** {comanda.data.strftime('%d-%m-%Y')}")
                     st.write(f"**Beneficiar:** {comanda.beneficiar.nume}")
+                    st.write(f"**Stare:** {comanda.stare}")
                 
                 with col2:
                     st.write(f"**Nume lucrare:** {comanda.nume_lucrare}")
                     st.write(f"**PO Client:** {comanda.po_client or '-'}")
                     st.write(f"**Tiraj:** {comanda.tiraj}")
-                    st.write(f"**Stare:** {comanda.stare}")
-                
-                with col3:
                     st.write(f"**Dimensiuni:** {comanda.latime}x{comanda.inaltime}mm")
                     st.write(f"**Nr. pagini:** {comanda.nr_pagini}")
+                
+                with col3:
+                    st.write(f"**Hârtie:** {comanda.hartie.sortiment}")
+                    st.write(f"**Format hârtie:** {comanda.hartie.format_hartie}")
+                    st.write(f"**Gramaj:** {comanda.hartie.gramaj}g/m²")
                     st.write(f"**Coli tipar:** {comanda.nr_coli_tipar}")
                     st.write(f"**Total coli:** {comanda.total_coli}")
                 
+                # Informații FSC
                 if comanda.certificare_fsc_produs:
                     st.success(f"✅ **FSC Produs Final:** {comanda.tip_certificare_fsc_produs} ({comanda.cod_fsc_produs})")
                 
-                                # Butoane acțiuni
+                if comanda.hartie.fsc_materie_prima:
+                    st.info(f"🌿 **FSC Materie Primă:** {comanda.hartie.certificare_fsc_materie_prima or '-'} ({comanda.hartie.cod_fsc_materie_prima or '-'})")
+                
+                # Secțiune pentru modificare coli prisoase și finalizare comandă
+                if not readonly and comanda.stare == "In lucru":
+                    st.markdown("---")
+                    st.markdown("### ⚡ Acțiuni rapide")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("**Actualizare coli prisoase:**")
+                        new_coli_prisoase = st.number_input(
+                            "Coli prisoase:", 
+                            min_value=0, 
+                            value=comanda.coli_prisoase or 0,
+                            key=f"quick_coli_prisoase_{comanda.id}",
+                            help="Modifică numărul de coli prisoase"
+                        )
+                        
+                        if st.button("💾 Actualizează coli", key=f"update_coli_{comanda.id}", type="secondary"):
+                            try:
+                                # Recalculează totalurile
+                                new_total_coli = comanda.nr_coli_tipar + new_coli_prisoase
+                                
+                                # Calculează coli mari
+                                coale_tipar_compatibile_quick = compatibilitate_hartie_coala.get(comanda.hartie.format_hartie, {})
+                                indice_coala_quick = coale_tipar_compatibile_quick.get(comanda.coala_tipar, 1) if coale_tipar_compatibile_quick else 1
+                                new_coli_mari = new_total_coli / indice_coala_quick if indice_coala_quick > 0 else None
+                                
+                                # Actualizează comanda
+                                comanda.coli_prisoase = new_coli_prisoase
+                                comanda.total_coli = new_total_coli
+                                comanda.coli_mari = new_coli_mari
+                                
+                                session.commit()
+                                st.success(f"✅ Coli prisoase actualizate! Total coli: {new_total_coli}")
+                                st.rerun()
+                            except Exception as e:
+                                session.rollback()
+                                st.error(f"Eroare la actualizare: {e}")
+                    
+                    with col2:
+                        st.markdown("**Finalizare comandă:**")
+                        st.info("Marchează comanda ca finalizată când lucrarea este gata.")
+                        if st.button("✅ Finalizează comanda", key=f"finalize_{comanda.id}", type="primary"):
+                            try:
+                                comanda.stare = "Finalizată"
+                                session.commit()
+                                st.success(f"✅ Comanda #{comanda.numar_comanda} a fost finalizată!")
+                                st.balloons()
+                                st.rerun()
+                            except Exception as e:
+                                session.rollback()
+                                st.error(f"Eroare la finalizare: {e}")
+                    
+                    st.markdown("---")
+                
+                # Butoane acțiuni
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     if st.button("📄 Export PDF", key=f"export_pdf_{comanda.id}"):
@@ -954,17 +1075,32 @@ with tab3:
                 
                 with col4:
                     if not readonly:
-                        if st.button("🗑️ Șterge comanda", type="secondary", key=f"delete_{comanda.id}"):
+                        # Folosim session state pentru confirmarea ștergerii
+                        if f"delete_confirm_{comanda.id}" not in st.session_state:
+                            st.session_state[f"delete_confirm_{comanda.id}"] = False
+                        
+                        if not st.session_state[f"delete_confirm_{comanda.id}"]:
+                            if st.button("🗑️ Șterge comanda", type="secondary", key=f"delete_{comanda.id}"):
+                                st.session_state[f"delete_confirm_{comanda.id}"] = True
+                                st.rerun()
+                        else:
                             st.warning("⚠️ Ești sigur că vrei să ștergi această comandă?")
-                            if st.button("✅ Confirmă ștergerea", key=f"confirm_delete_{comanda.id}"):
-                                try:
-                                    session.delete(comanda)
-                                    session.commit()
-                                    st.success(f"Comanda #{comanda.numar_comanda} a fost ștearsă!")
+                            col_yes, col_no = st.columns(2)
+                            with col_yes:
+                                if st.button("✅ Da, șterge", key=f"confirm_yes_{comanda.id}", type="primary"):
+                                    try:
+                                        session.delete(comanda)
+                                        session.commit()
+                                        st.session_state[f"delete_confirm_{comanda.id}"] = False
+                                        st.success(f"Comanda #{comanda.numar_comanda} a fost ștearsă!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        session.rollback()
+                                        st.error(f"Eroare la ștergere: {e}")
+                            with col_no:
+                                if st.button("❌ Anulează", key=f"confirm_no_{comanda.id}"):
+                                    st.session_state[f"delete_confirm_{comanda.id}"] = False
                                     st.rerun()
-                                except Exception as e:
-                                    session.rollback()
-                                    st.error(f"Eroare la ștergere: {e}")
 
 # Închidere sesiune
 session.close()

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from models import get_session
 from models.hartie import Hartie
-from constants import CODURI_FSC_MATERIE_PRIMA, CERTIFICARI_FSC_MATERIE_PRIMA
+from constants import CODURI_FSC_MATERIE_PRIMA, CERTIFICARI_FSC_MATERIE_PRIMA, FURNIZORI_CERTIFICARE
 import os
 from dotenv import load_dotenv
 
@@ -85,13 +85,13 @@ with tab1:
     # Opțiuni căutare
     search_query = st.text_input("Caută după sortiment:")
     
-    # Obținere date
+    # Obținere date - sortate alfabetic după sortiment
     if search_query:
         hartii = session.query(Hartie).filter(
             Hartie.sortiment.ilike(f"%{search_query}%")
-        ).all()
+        ).order_by(Hartie.sortiment).all()
     else:
-        hartii = session.query(Hartie).all()
+        hartii = session.query(Hartie).order_by(Hartie.sortiment).all()
     
     # Construire DataFrame pentru afișare
     if hartii:
@@ -299,6 +299,20 @@ with tab4:
             # Afișare informații sortiment
             st.info(f"📄 **Sortiment selectat:** {hartie_selectata.sortiment} | **Stoc actual:** {hartie_selectata.stoc:.2f} coli")
             
+            # Selectare furnizor ÎNAINTE de formular pentru a fi dinamic
+            st.markdown("### Selectare Furnizor")
+            furnizor_selectat = st.selectbox(
+                "Furnizor*:", 
+                options=[""] + list(FURNIZORI_CERTIFICARE.keys()),
+                help="Selectează furnizorul din listă"
+            )
+            
+            # Auto-completare cod certificare bazat pe furnizor
+            cod_certificare_auto = ""
+            if furnizor_selectat and furnizor_selectat in FURNIZORI_CERTIFICARE:
+                cod_certificare_auto = FURNIZORI_CERTIFICARE[furnizor_selectat]
+                st.success(f"✅ Cod certificare asociat automat: **{cod_certificare_auto}**")
+            
             # Formular pentru intrare
             with st.form("intrare_hartie_form"):
                 st.markdown("### Detalii Intrare")
@@ -309,8 +323,9 @@ with tab4:
                     nr_factura = st.text_input("Număr factură*:", placeholder="Ex: FAC-2024-001")
                 
                 with col2:
-                    furnizor = st.text_input("Furnizor*:", placeholder="Ex: SC Furnizor SRL")
-                    cod_certificare = st.text_input("Cod certificare:", placeholder="Ex: FSC-C123456")
+                    # Afișare furnizor selectat (read-only în formular)
+                    st.text_input("Furnizor selectat:", value=furnizor_selectat, disabled=True)
+                    st.text_input("Cod certificare:", value=cod_certificare_auto, disabled=True)
                 
                 nr_coli = st.number_input("Număr coli*:", min_value=0.0, value=0.0, step=1.0, help="Numărul de coli primite")
                 
@@ -335,8 +350,8 @@ with tab4:
                     # Validare date
                     if not nr_factura or not nr_factura.strip():
                         st.error("Numărul facturii este obligatoriu!")
-                    elif not furnizor or not furnizor.strip():
-                        st.error("Furnizorul este obligatoriu!")
+                    elif not furnizor_selectat or not furnizor_selectat.strip():
+                        st.error("Furnizorul este obligatoriu! Selectează un furnizor din listă.")
                     elif nr_coli <= 0:
                         st.error("Numărul de coli trebuie să fie mai mare decât 0!")
                     else:
@@ -346,15 +361,17 @@ with tab4:
                                 hartie_id=hartie_id_intrare,
                                 cantitate=nr_coli,
                                 nr_factura=nr_factura.strip(),
-                                furnizor=furnizor.strip(),
-                                cod_certificare=cod_certificare.strip() if cod_certificare and cod_certificare.strip() else None,
+                                furnizor=furnizor_selectat.strip(),
+                                cod_certificare=cod_certificare_auto if cod_certificare_auto else None,
                                 data=data_intrare
                             )
                             session.add(intrare_stoc)
                             
-                            # Actualizează stocul hârtiei
+                            # Actualizează stocul hârtiei și furnizorul
                             hartie_selectata.stoc += nr_coli
                             hartie_selectata.greutate = hartie_selectata.calculeaza_greutate()
+                            hartie_selectata.furnizor = furnizor_selectat.strip()
+                            hartie_selectata.cod_certificare = cod_certificare_auto if cod_certificare_auto else None
                             
                             session.commit()
                             st.success(f"✅ Intrarea de {nr_coli:.2f} coli pentru '{hartie_selectata.sortiment}' a fost înregistrată cu succes!")
