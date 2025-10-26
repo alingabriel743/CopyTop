@@ -508,7 +508,7 @@ with tab2:
 
 with tab3:
     st.subheader("Modificare sau Anulare Factură")
-    st.warning("⚠️ Atenție: Anularea unei facturi va restitui stocul de hârtie consumat!")
+    st.info("ℹ️ Anularea unei facturi o readuce la starea 'Finalizată' (stocul rămâne consumat)")
     
     # Selectare comandă facturată
     comenzi_facturate = session.query(Comanda).join(Beneficiar).filter(
@@ -583,12 +583,8 @@ with tab3:
                             st.error(f"Eroare: {e}")
                 
                 else:  # Anulează factura
-                    st.error("⚠️ Această acțiune va anula factura și va restitui stocul de hârtie!")
-                    
-                    # Calculează stocul de restituit
-                    if comanda.total_coli and comanda.coala_tipar in indici_coala:
-                        consum_hartie = comanda.total_coli / indici_coala[comanda.coala_tipar]
-                        st.info(f"Se vor restitui {consum_hartie:.2f} coli de hârtie în stoc")
+                    st.error("⚠️ Această acțiune va anula factura!")
+                    st.info("ℹ️ Comanda va reveni la starea 'Finalizată' (stocul de hârtie rămâne consumat)")
                     
                     # Folosim session state pentru confirmarea anulării
                     if f"cancel_invoice_confirm_{comanda.id}" not in st.session_state:
@@ -604,15 +600,8 @@ with tab3:
                         with col_yes:
                             if st.button("✅ Da, anulează", key=f"confirm_cancel_yes_{comanda.id}", type="primary"):
                                 try:
-                                    # Restituie stocul
-                                    if comanda.total_coli and comanda.coala_tipar in indici_coala:
-                                        consum_hartie = comanda.total_coli / indici_coala[comanda.coala_tipar]
-                                        hartie = session.query(Hartie).get(comanda.hartie_id)
-                                        if hartie:
-                                            hartie.stoc += consum_hartie
-                                            hartie.greutate = hartie.calculeaza_greutate()
-                                    
                                     # Anulează factura și șterge detaliile facturii
+                                    # NOTĂ: Stocul NU se restituie - a fost deja scăzut la finalizare
                                     comanda.facturata = False
                                     comanda.pret = None
                                     comanda.nr_factura = None
@@ -621,7 +610,7 @@ with tab3:
                                     
                                     session.commit()
                                     st.session_state[f"cancel_invoice_confirm_{comanda.id}"] = False
-                                    st.success("✅ Factura a fost anulată și stocul a fost restituit!")
+                                    st.success("✅ Factura a fost anulată! Comanda este acum 'Finalizată'.")
                                     st.rerun()
                                     
                                 except Exception as e:
