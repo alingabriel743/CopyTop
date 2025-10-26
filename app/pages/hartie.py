@@ -198,7 +198,7 @@ with tab3:
     st.subheader("Editează Sortiment de Hârtie")
     
     # Selectare hârtie
-    hartii = session.query(Hartie).all()
+    hartii = session.query(Hartie).order_by(Hartie.sortiment).all()
     if not hartii:
         st.info("Nu există sortimente de hârtie în baza de date.")
     else:
@@ -285,7 +285,7 @@ with tab4:
     from datetime import datetime
     
     # Selectare sortiment hârtie
-    hartii = session.query(Hartie).all()
+    hartii = session.query(Hartie).order_by(Hartie.sortiment).all()
     if not hartii:
         st.warning("Nu există sortimente de hârtie în baza de date. Adaugă mai întâi un sortiment.")
     else:
@@ -376,7 +376,7 @@ with tab4:
                             session.commit()
                             st.success(f"✅ Intrarea de {nr_coli:.2f} coli pentru '{hartie_selectata.sortiment}' a fost înregistrată cu succes!")
                             st.balloons()
-                            st.rerun()
+                            st.rerun()  # Resetează formularul
                         except Exception as e:
                             session.rollback()
                             st.error(f"Eroare la înregistrarea intrării: {e}")

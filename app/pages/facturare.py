@@ -126,18 +126,21 @@ with tab1:
             del st.session_state.comenzi_editor_data
 
     # Obține comenzile nefacturate și finalizate
+    # Refresh explicit al sesiunii pentru a obține date actualizate
+    session.expire_all()
+    
     if selected_beneficiar == "Toți beneficiarii":
         comenzi_nefacturate = session.query(Comanda).filter(
             Comanda.facturata == False,
             Comanda.stare == "Finalizată"
-        ).all()
+        ).order_by(Comanda.numar_comanda.desc()).all()
     else:
         beneficiar_id = next((b.id for b in beneficiari if b.nume == selected_beneficiar), None)
         comenzi_nefacturate = session.query(Comanda).filter(
             Comanda.beneficiar_id == beneficiar_id,
             Comanda.facturata == False,
             Comanda.stare == "Finalizată"
-        ).all()
+        ).order_by(Comanda.numar_comanda.desc()).all()
 
     if not comenzi_nefacturate:
         st.info("Nu există comenzi nefacturate pentru acest beneficiar.")
@@ -165,12 +168,12 @@ with tab1:
         df_comenzi = pd.DataFrame(comenzi_data)
         
         # Inițializare session state pentru a păstra selecțiile
-        if 'comenzi_editor_data' not in st.session_state:
-            st.session_state.comenzi_editor_data = df_comenzi
+        # Actualizează întotdeauna cu datele fresh din baza de date
+        st.session_state.comenzi_editor_data = df_comenzi
         
         # Editare DataFrame pentru selecție
         edited_df = st.data_editor(
-            st.session_state.comenzi_editor_data,
+            df_comenzi,
             hide_index=True,
             use_container_width=True,
             column_config={
@@ -227,11 +230,11 @@ with tab1:
                             po_client_nou = row["PO Client"] if row["PO Client"] != "-" else None
                             comanda = session.query(Comanda).get(comanda_id)
                             if comanda:
-                                if pret_nou != (comanda.pret or 0):
-                                    comanda.pret = pret_nou
-                                if po_client_nou != comanda.po_client:
-                                    comanda.po_client = po_client_nou
+                                comanda.pret = pret_nou
+                                comanda.po_client = po_client_nou
                         session.commit()
+                        # Actualizează și session state
+                        st.session_state.comenzi_editor_data = edited_df
                         st.success("Prețurile și PO Client au fost salvate!")
                         st.rerun()
                     except Exception as e:
@@ -316,22 +319,8 @@ with tab1:
                                 comanda = session.query(Comanda).get(comanda_id)
                                 
                                 if comanda:
-                                    # Calculează consumul de hârtie
-                                    if comanda.total_coli and comanda.total_coli > 0:
-                                        indice_coala = indici_coala.get(comanda.coala_tipar, 1)
-                                        consum_hartie = comanda.total_coli / indice_coala
-                                        hartie = session.query(Hartie).get(comanda.hartie_id)
-                                        
-                                        if hartie:
-                                            if consum_hartie > hartie.stoc:
-                                                erori.append(f"Comandă #{comanda.numar_comanda}: stoc insuficient!")
-                                                continue
-                                            else:
-                                                # Actualizează stocul
-                                                hartie.stoc -= consum_hartie
-                                                hartie.greutate = hartie.calculeaza_greutate()
-                                    
                                     # Marchează ca facturată și salvează detaliile facturii
+                                    # NOTĂ: Stocul de hârtie este deja actualizat când comanda a fost finalizată
                                     comanda.facturata = True
                                     comanda.nr_factura = nr_factura_input
                                     comanda.data_facturare = data_facturare_input
@@ -556,22 +545,38 @@ with tab3:
                 # Opțiuni de modificare
                 actiune = st.radio(
                     "Acțiune:",
-                    ["Modifică prețul", "Anulează factura"]
+                    ["Modifică detalii factură", "Anulează factura"]
                 )
                 
-                if actiune == "Modifică prețul":
-                    pret_nou = st.number_input(
-                        "Preț nou (RON):",
-                        min_value=0.0,
-                        value=float(comanda.pret or 0),
-                        step=10.0
-                    )
+                if actiune == "Modifică detalii factură":
+                    st.markdown("### Modificare detalii")
                     
-                    if st.button("💾 Salvează preț nou", type="primary"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        pret_nou = st.number_input(
+                            "Preț nou (RON):",
+                            min_value=0.0,
+                            value=float(comanda.pret or 0),
+                            step=10.0
+                        )
+                        nr_factura_nou = st.text_input(
+                            "Număr factură:",
+                            value=comanda.nr_factura or ""
+                        )
+                    
+                    with col2:
+                        data_facturare_noua = st.date_input(
+                            "Data facturare:",
+                            value=comanda.data_facturare if comanda.data_facturare else datetime.now()
+                        )
+                    
+                    if st.button("💾 Salvează modificările", type="primary"):
                         try:
                             comanda.pret = pret_nou
+                            comanda.nr_factura = nr_factura_nou if nr_factura_nou.strip() else None
+                            comanda.data_facturare = data_facturare_noua
                             session.commit()
-                            st.success(f"✅ Prețul a fost actualizat la {pret_nou:.2f} RON")
+                            st.success(f"✅ Detaliile facturii au fost actualizate!")
                             st.rerun()
                         except Exception as e:
                             session.rollback()
