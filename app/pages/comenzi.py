@@ -263,6 +263,26 @@ with tab2:
         </style>
     """, unsafe_allow_html=True)
     st.subheader("Adaugă Comandă Nouă")
+    
+    # Afișează mesajul de succes din session state
+    if 'comanda_success_msg' in st.session_state:
+        st.success(st.session_state.comanda_success_msg)
+        del st.session_state.comanda_success_msg
+    
+    # Funcție pentru resetarea completă a formularului
+    def reset_form_fields():
+        """Șterge toate câmpurile formularului din session state"""
+        keys_to_delete = [key for key in st.session_state.keys() if key.startswith(('nume_', 'po_', 'tiraj_', 'desc_', 'hartie_select', 'edit_'))]
+        for key in keys_to_delete:
+            del st.session_state[key]
+        # Incrementează counter-ul pentru a forța recrearea widget-urilor
+        if 'form_counter' in st.session_state:
+            st.session_state.form_counter += 1
+    
+    # Counter pentru resetare COMPLETĂ
+    if 'form_counter' not in st.session_state:
+        st.session_state.form_counter = 0
+    form_key = st.session_state.form_counter
 
     ultima_comanda = session.query(Comanda).order_by(Comanda.numar_comanda.desc()).first()
     numar_comanda_nou = 1 if not ultima_comanda else ultima_comanda.numar_comanda + 1
@@ -289,13 +309,13 @@ with tab2:
     st.markdown("### Lucrare")
     col1, col2 = st.columns(2)
     with col1:
-        nume_lucrare = st.text_input("Nume lucrare*:", placeholder="Ex: Broșură prezentare companie")
+        nume_lucrare = st.text_input("Nume lucrare*:", placeholder="Ex: Broșură prezentare companie", key=f"nume_{form_key}")
     with col2:
-        po_client = st.text_input("PO Client:")
+        po_client = st.text_input("PO Client:", key=f"po_{form_key}")
 
     col1, col2 = st.columns(2)
     with col1:
-        tiraj = st.number_input("Tiraj*:", min_value=1, value=500)
+        tiraj = st.number_input("Tiraj*:", min_value=1, value=500, key=f"tiraj_{form_key}")
     with col2:
         pass  # Empty column for spacing
 
@@ -312,7 +332,7 @@ with tab2:
     with col4:
         indice_corectie = st.number_input("Indice corecție:", min_value=0.0001, max_value=1.0, value=1.0000, step=0.0001, format="%.4f")
 
-    descriere_lucrare = st.text_area("Descriere lucrare:", height=100, placeholder="Detalii despre lucrare...")
+    descriere_lucrare = st.text_area("Descriere lucrare:", height=100, placeholder="Detalii despre lucrare...", key=f"desc_{form_key}")
 
     st.markdown("### Certificare FSC Produs Final")
     certificare_fsc_produs = st.checkbox("Lucrare certificată FSC (produs final)")
@@ -543,11 +563,12 @@ with tab2:
                     # Salvează comanda în session state pentru export PDF
                     st.session_state.last_created_comanda = comanda
                     
-                    # Șterge comanda din session state pentru a reseta complet
-                    if 'last_created_comanda' in st.session_state:
-                        del st.session_state.last_created_comanda
+                    # Salvează mesajul în session state pentru a-l afișa după rerun
+                    st.session_state.comanda_success_msg = f"✅ Comanda #{numar_comanda_nou} - '{nume_lucrare}' este lansată în producție!"
                     
-                    st.success(f"Comanda #{numar_comanda_nou} - '{nume_lucrare}' a fost adăugată cu succes!")
+                    # Resetează formularul - șterge toate câmpurile și incrementează counter-ul
+                    reset_form_fields()
+                    
                     st.balloons()
                     st.rerun()  # Resetează formularul pentru a preveni dublarea comenzilor
                 except Exception as e:
@@ -584,7 +605,7 @@ with tab2:
                     st.error(f"Eroare la generarea PDF: {e}")
 
 with tab3:
-    st.subheader("Editează sau Șterge Comandă")
+    st.subheader("Editează Comandă")
     
     # Filtrare comenzi - implicit "In lucru"
     col1, col2 = st.columns(2)
@@ -944,9 +965,9 @@ with tab3:
                 
                 with col3:
                     st.write(f"**Hârtie:** {comanda.hartie.sortiment}")
-                    st.write(f"**Format hârtie:** {comanda.hartie.format_hartie}")
                     st.write(f"**Gramaj:** {comanda.hartie.gramaj}g/m²")
                     st.write(f"**Coli tipar:** {comanda.nr_coli_tipar}")
+                    st.write(f"**Coli prisoase:** {comanda.coli_prisoase or 0}")
                     st.write(f"**Total coli:** {comanda.total_coli}")
                 
                 # Informații FSC

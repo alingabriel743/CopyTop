@@ -154,6 +154,7 @@ with tab1:
                 "✓": False,  # Checkbox pentru selecție
                 "ID": comanda.id,
                 "Nr. Comandă": comanda.numar_comanda,
+                "Beneficiar": comanda.beneficiar.nume,
                 "Data": comanda.data.strftime("%d-%m-%Y"),
                 "Nume Lucrare": comanda.nume_lucrare,
                 "Tiraj": comanda.tiraj,
@@ -182,10 +183,10 @@ with tab1:
                     help="Selectează comenzile de facturat",
                     default=False,
                 ),
-                "ID": st.column_config.NumberColumn(
-                    "ID",
-                    disabled=True,
-                    width="small"
+                "ID": None,  # Ascunde coloana ID
+                "Beneficiar": st.column_config.TextColumn(
+                    "Beneficiar",
+                    width="medium"
                 ),
                 "Preț": st.column_config.NumberColumn(
                     "Preț (RON)",
@@ -200,7 +201,7 @@ with tab1:
                     max_chars=100
                 )
             },
-            disabled=["Nr. Comandă", "Data", "Nume Lucrare", "Tiraj", "FSC", "Cod FSC", "Certificare FSC"],
+            disabled=["Nr. Comandă", "Beneficiar", "Data", "Nume Lucrare", "Tiraj", "FSC", "Cod FSC", "Certificare FSC"],
             key="comenzi_selector"
         )
         

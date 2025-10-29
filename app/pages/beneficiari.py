@@ -86,8 +86,8 @@ with tab2:
                     st.error(f"Eroare la adăugarea beneficiarului: {e}")
 
 with tab3:
-    # Cod pentru editare/ștergere beneficiar
-    st.subheader("Editează sau Șterge Beneficiar")
+    # Cod pentru editare beneficiar
+    st.subheader("Editează Beneficiar")
     
     # Selectare beneficiar - sortați alfabetic
     beneficiari = session.query(Beneficiar).order_by(Beneficiar.nume).all()
@@ -108,11 +108,7 @@ with tab3:
                 telefon = st.text_input("Telefon*:", value=beneficiar.telefon)
                 email = st.text_input("Email*:", value=beneficiar.email)
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    update_button = st.form_submit_button("Actualizează Beneficiar")
-                with col2:
-                    delete_button = st.form_submit_button("Șterge Beneficiar")
+                update_button = st.form_submit_button("Actualizează Beneficiar", type="primary", use_container_width=True)
                 
                 if update_button:
                     # Validare date
@@ -130,16 +126,9 @@ with tab3:
                         except Exception as e:
                             session.rollback()
                             st.error(f"Eroare la actualizarea beneficiarului: {e}")
-                
-                if delete_button:
-                    try:
-                        session.delete(beneficiar)
-                        session.commit()
-                        st.success(f"Beneficiarul '{beneficiar.nume}' a fost șters cu succes!")
-                        st.rerun()
-                    except Exception as e:
-                        session.rollback()
-                        st.error(f"Eroare la ștergerea beneficiarului: {e}")
+            
+            # Avertisment despre ștergere
+            st.warning("⚠️ **Notă:** Ștergerea beneficiarilor este dezactivată pentru a preveni conflictele cu comenzile existente.")
 
 # Închidere sesiune
 session.close()

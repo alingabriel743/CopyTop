@@ -197,6 +197,15 @@ with tab3:
     # Cod pentru editare hârtie
     st.subheader("Editează Sortiment de Hârtie")
     
+    st.warning("⚠️ **Atenție**: Editarea sortimentelor de hârtie poate afecta comenzile existente!")
+    st.info("ℹ️ Pentru modificări de stoc, folosește tab-ul 'Intrări Hârtie'")
+    
+    # Toggle pentru a permite editarea
+    allow_edit = st.toggle("🔓 Permite editare sortiment", key="allow_hartie_edit")
+    
+    if not allow_edit:
+        st.info("👆 Activează 'Permite editare sortiment' pentru a modifica datele")
+    
     # Selectare hârtie
     hartii = session.query(Hartie).order_by(Hartie.sortiment).all()
     if not hartii:
@@ -209,77 +218,98 @@ with tab3:
             hartie_id = int(selected_hartie.split(" - ")[0])
             hartie = session.query(Hartie).get(hartie_id)
             
-            # Formular pentru editare
-            with st.form("edit_hartie_form"):
-                sortiment = st.text_input("Sortiment Hârtie*:", value=hartie.sortiment)
+            # Formular pentru editare (doar dacă editarea este permisă)
+            if allow_edit:
+                with st.form("edit_hartie_form"):
+                    sortiment = st.text_input("Sortiment Hârtie*:", value=hartie.sortiment)
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    format_hartie = st.selectbox("Format Hârtie*:", list(formate_hartie.keys()), index=list(formate_hartie.keys()).index(hartie.format_hartie) if hartie.format_hartie in formate_hartie else 0)
-                    dimensiune_1 = formate_hartie[format_hartie][0]
-                    dimensiune_2 = formate_hartie[format_hartie][1]
-                    st.write(f"Dimensiuni: {dimensiune_1} x {dimensiune_2} cm")
-                
-                with col2:
-                    gramaj = st.number_input("Gramaj (g/m²)*:", min_value=1, value=int(hartie.gramaj))
-                    stoc = st.number_input("Stoc (coli)*:", min_value=0.0, value=float(hartie.stoc), step=1.0)
-
-                
-                # Certificare FSC materie primă
-                st.markdown("### Certificare FSC Materie Primă")
-                has_fsc = st.checkbox("Hârtie certificată FSC (materie primă)", value=hartie.fsc_materie_prima)
-                
-                if has_fsc:
                     col1, col2 = st.columns(2)
                     with col1:
-                        cod_fsc_index = list(CODURI_FSC_MATERIE_PRIMA.keys()).index(hartie.cod_fsc_materie_prima) if hartie.cod_fsc_materie_prima in CODURI_FSC_MATERIE_PRIMA else 0
-                        cod_fsc = st.selectbox("Cod FSC materie primă*:", list(CODURI_FSC_MATERIE_PRIMA.keys()), index=cod_fsc_index)
-                        st.info(f"Descriere: {CODURI_FSC_MATERIE_PRIMA[cod_fsc]}")
+                        format_hartie = st.selectbox("Format Hârtie*:", list(formate_hartie.keys()), index=list(formate_hartie.keys()).index(hartie.format_hartie) if hartie.format_hartie in formate_hartie else 0)
+                        dimensiune_1 = formate_hartie[format_hartie][0]
+                        dimensiune_2 = formate_hartie[format_hartie][1]
+                        st.write(f"Dimensiuni: {dimensiune_1} x {dimensiune_2} cm")
+                    
                     with col2:
-                        certificare_index = CERTIFICARI_FSC_MATERIE_PRIMA.index(hartie.certificare_fsc_materie_prima) if hartie.certificare_fsc_materie_prima in CERTIFICARI_FSC_MATERIE_PRIMA else 0
-                        certificare_fsc = st.selectbox("Certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA, index=certificare_index)
-                else:
-                    cod_fsc = None
-                    certificare_fsc = None
-                
-                # Calculare greutate
-                greutate = dimensiune_1 * dimensiune_2 * gramaj * stoc / 10**7
-                st.write(f"Greutate calculată: {greutate:.3f} kg")
-                
-                update_button = st.form_submit_button("Actualizează Hârtie", type="primary", use_container_width=True)
-                
-                if update_button:
-                    # Validare date
-                    if not sortiment or gramaj <= 0:
-                        st.error("Completează toate câmpurile obligatorii!")
-                    elif has_fsc and (not cod_fsc or not certificare_fsc):
-                        st.error("Pentru hârtie certificată FSC, trebuie completate Cod FSC și Certificare FSC!")
+                        gramaj = st.number_input("Gramaj (g/m²)*:", min_value=1, value=int(hartie.gramaj))
+                        stoc = st.number_input("Stoc (coli)*:", min_value=0.0, value=float(hartie.stoc), step=1.0)
+
+                    
+                    # Certificare FSC materie primă
+                    st.markdown("### Certificare FSC Materie Primă")
+                    has_fsc = st.checkbox("Hârtie certificată FSC (materie primă)", value=hartie.fsc_materie_prima)
+                    
+                    if has_fsc:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            cod_fsc_index = list(CODURI_FSC_MATERIE_PRIMA.keys()).index(hartie.cod_fsc_materie_prima) if hartie.cod_fsc_materie_prima in CODURI_FSC_MATERIE_PRIMA else 0
+                            cod_fsc = st.selectbox("Cod FSC materie primă*:", list(CODURI_FSC_MATERIE_PRIMA.keys()), index=cod_fsc_index)
+                            st.info(f"Descriere: {CODURI_FSC_MATERIE_PRIMA[cod_fsc]}")
+                        with col2:
+                            certificare_index = CERTIFICARI_FSC_MATERIE_PRIMA.index(hartie.certificare_fsc_materie_prima) if hartie.certificare_fsc_materie_prima in CERTIFICARI_FSC_MATERIE_PRIMA else 0
+                            certificare_fsc = st.selectbox("Certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA, index=certificare_index)
                     else:
-                        # Actualizare în baza de date
-                        try:
-                            hartie.sortiment = sortiment
-                            hartie.dimensiune_1 = dimensiune_1
-                            hartie.dimensiune_2 = dimensiune_2
-                            hartie.gramaj = gramaj
-                            hartie.format_hartie = format_hartie
-                            hartie.stoc = stoc
-                            hartie.greutate = greutate
-                            hartie.fsc_materie_prima = has_fsc
-                            hartie.cod_fsc_materie_prima = cod_fsc
-                            hartie.certificare_fsc_materie_prima = certificare_fsc
-                            
-                            session.commit()
-                            st.success(f"Sortimentul de hârtie '{sortiment}' a fost actualizat cu succes!")
-                        except Exception as e:
-                            session.rollback()
-                            st.error(f"Eroare la actualizarea sortimentului de hârtie: {e}")
-            
-            # Avertisment despre ștergere
-            st.warning("⚠️ **Notă:** Ștergerea sortimentelor de hârtie este dezactivată pentru a preveni conflictele cu comenzile existente. Dacă ai nevoie să ștergi date, folosește scriptul de resetare a bazei de date.")
+                        cod_fsc = None
+                        certificare_fsc = None
+                    
+                    # Calculare greutate
+                    greutate = dimensiune_1 * dimensiune_2 * gramaj * stoc / 10**7
+                    st.write(f"Greutate calculată: {greutate:.3f} kg")
+                    
+                    update_button = st.form_submit_button("Actualizează Hârtie", type="primary", use_container_width=True)
+                    
+                    if update_button:
+                        # Validare date
+                        if not sortiment or gramaj <= 0:
+                            st.error("Completează toate câmpurile obligatorii!")
+                        elif has_fsc and (not cod_fsc or not certificare_fsc):
+                            st.error("Pentru hârtie certificată FSC, trebuie completate Cod FSC și Certificare FSC!")
+                        else:
+                            # Actualizare în baza de date
+                            try:
+                                hartie.sortiment = sortiment
+                                hartie.dimensiune_1 = dimensiune_1
+                                hartie.dimensiune_2 = dimensiune_2
+                                hartie.gramaj = gramaj
+                                hartie.format_hartie = format_hartie
+                                hartie.stoc = stoc
+                                hartie.greutate = greutate
+                                hartie.fsc_materie_prima = has_fsc
+                                hartie.cod_fsc_materie_prima = cod_fsc
+                                hartie.certificare_fsc_materie_prima = certificare_fsc
+                                
+                                session.commit()
+                                st.success(f"Sortimentul de hârtie '{sortiment}' a fost actualizat cu succes!")
+                            except Exception as e:
+                                session.rollback()
+                                st.error(f"Eroare la actualizarea sortimentului de hârtie: {e}")
+                    
+                    # Avertisment despre ștergere
+                    st.warning("⚠️ **Notă:** Ștergerea sortimentelor de hârtie este dezactivată pentru a preveni conflictele cu comenzile existente.")
+            else:
+                # Afișare date read-only când editarea nu este permisă
+                st.markdown("### Informații sortiment (read-only)")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Sortiment:** {hartie.sortiment}")
+                    st.write(f"**Format:** {hartie.format_hartie}")
+                    st.write(f"**Dimensiuni:** {hartie.dimensiune_1} x {hartie.dimensiune_2} cm")
+                with col2:
+                    st.write(f"**Gramaj:** {hartie.gramaj} g/m²")
+                    st.write(f"**Stoc:** {hartie.stoc:.2f} coli")
+                    st.write(f"**Greutate:** {hartie.greutate:.3f} kg")
+                
+                if hartie.fsc_materie_prima:
+                    st.success(f"🌿 **FSC Materie Primă:** {hartie.certificare_fsc_materie_prima or '-'} ({hartie.cod_fsc_materie_prima or '-'})")
 
 with tab4:
     # Cod pentru înregistrare intrări hârtie
     st.subheader("Înregistrare Intrare Hârtie")
+    
+    # Afișează mesajul de succes din session state
+    if 'intrare_success_msg' in st.session_state:
+        st.success(st.session_state.intrare_success_msg)
+        del st.session_state.intrare_success_msg
     
     from models.stoc import Stoc
     from datetime import datetime
@@ -374,7 +404,10 @@ with tab4:
                             hartie_selectata.cod_certificare = cod_certificare_auto if cod_certificare_auto else None
                             
                             session.commit()
-                            st.success(f"✅ Intrarea de {nr_coli:.2f} coli pentru '{hartie_selectata.sortiment}' a fost înregistrată cu succes!")
+                            
+                            # Salvează mesajul în session state pentru a-l afișa după rerun
+                            st.session_state.intrare_success_msg = f"✅ Intrarea de {nr_coli:.2f} coli pentru '{hartie_selectata.sortiment}' a fost înregistrată cu succes!"
+                            
                             st.balloons()
                             st.rerun()  # Resetează formularul
                         except Exception as e:
