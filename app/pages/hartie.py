@@ -374,7 +374,14 @@ with tab4:
                     with col3:
                         st.metric("Greutate totală", f"{greutate_totala:.3f} kg", delta=f"+{greutate_noua:.3f}")
                 
-                submitted = st.form_submit_button("✅ Validează Intrarea", type="primary", use_container_width=True)
+                col1, col2 = st.columns(2)
+                with col1:
+                    submitted = st.form_submit_button("✅ Validează Intrarea", type="primary", use_container_width=True)
+                with col2:
+                    reset_button = st.form_submit_button("🔄 Resetează formular", use_container_width=True)
+                
+                if reset_button:
+                    st.rerun()
                 
                 if submitted:
                     # Validare date
@@ -385,34 +392,43 @@ with tab4:
                     elif nr_coli <= 0:
                         st.error("Numărul de coli trebuie să fie mai mare decât 0!")
                     else:
-                        try:
-                            # Creează intrarea în stoc
-                            intrare_stoc = Stoc(
-                                hartie_id=hartie_id_intrare,
-                                cantitate=nr_coli,
-                                nr_factura=nr_factura.strip(),
-                                furnizor=furnizor_selectat.strip(),
-                                cod_certificare=cod_certificare_auto if cod_certificare_auto else None,
-                                data=data_intrare
-                            )
-                            session.add(intrare_stoc)
-                            
-                            # Actualizează stocul hârtiei și furnizorul
-                            hartie_selectata.stoc += nr_coli
-                            hartie_selectata.greutate = hartie_selectata.calculeaza_greutate()
-                            hartie_selectata.furnizor = furnizor_selectat.strip()
-                            hartie_selectata.cod_certificare = cod_certificare_auto if cod_certificare_auto else None
-                            
-                            session.commit()
-                            
-                            # Salvează mesajul în session state pentru a-l afișa după rerun
-                            st.session_state.intrare_success_msg = f"✅ Intrarea de {nr_coli:.2f} coli pentru '{hartie_selectata.sortiment}' a fost înregistrată cu succes!"
-                            
-                            st.balloons()
-                            st.rerun()  # Resetează formularul
-                        except Exception as e:
-                            session.rollback()
-                            st.error(f"Eroare la înregistrarea intrării: {e}")
+                        # Verificare duplicat: același sortiment + același număr factură
+                        intrare_existenta = session.query(Stoc).filter(
+                            Stoc.hartie_id == hartie_id_intrare,
+                            Stoc.nr_factura == nr_factura.strip()
+                        ).first()
+                        
+                        if intrare_existenta:
+                            st.error(f"❌ Acest sortiment ({hartie_selectata.sortiment}) a fost deja înregistrat pe factura {nr_factura}! Verifică dacă nu ai introdus deja această intrare.")
+                        else:
+                            try:
+                                # Creează intrarea în stoc
+                                intrare_stoc = Stoc(
+                                    hartie_id=hartie_id_intrare,
+                                    cantitate=nr_coli,
+                                    nr_factura=nr_factura.strip(),
+                                    furnizor=furnizor_selectat.strip(),
+                                    cod_certificare=cod_certificare_auto if cod_certificare_auto else None,
+                                    data=data_intrare
+                                )
+                                session.add(intrare_stoc)
+                                
+                                # Actualizează stocul hârtiei și furnizorul
+                                hartie_selectata.stoc += nr_coli
+                                hartie_selectata.greutate = hartie_selectata.calculeaza_greutate()
+                                hartie_selectata.furnizor = furnizor_selectat.strip()
+                                hartie_selectata.cod_certificare = cod_certificare_auto if cod_certificare_auto else None
+                                
+                                session.commit()
+                                
+                                # Salvează mesajul în session state pentru a-l afișa după rerun
+                                st.session_state.intrare_success_msg = f"✅ Intrarea de {nr_coli:.2f} coli pentru '{hartie_selectata.sortiment}' a fost înregistrată cu succes!"
+                                
+                                st.balloons()
+                                st.rerun()  # Resetează formularul
+                            except Exception as e:
+                                session.rollback()
+                                st.error(f"Eroare la înregistrarea intrării: {e}")
     
     # Afișare istoric intrări
     st.markdown("---")

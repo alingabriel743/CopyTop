@@ -149,7 +149,7 @@ compatibilitate_hartie_coala = {
 session = get_session()
 
 # Tabs pentru diferite acțiuni
-tab1, tab2, tab3 = st.tabs(["Lista Comenzi", "Adaugă Comandă", "Editează/Șterge Comandă"])
+tab1, tab2, tab3 = st.tabs(["Lista Comenzi", "Adaugă Comandă", "Editează Comandă"])
 
 with tab1:
     # Cod pentru listare comenzi
@@ -271,13 +271,19 @@ with tab2:
     
     # Funcție pentru resetarea completă a formularului
     def reset_form_fields():
-        """Șterge toate câmpurile formularului din session state"""
-        keys_to_delete = [key for key in st.session_state.keys() if key.startswith(('nume_', 'po_', 'tiraj_', 'desc_', 'hartie_select', 'edit_'))]
-        for key in keys_to_delete:
-            del st.session_state[key]
-        # Incrementează counter-ul pentru a forța recrearea widget-urilor
-        if 'form_counter' in st.session_state:
-            st.session_state.form_counter += 1
+        """Șterge TOATE câmpurile formularului din session state pentru resetare completă"""
+        # Salvează counter-ul actual
+        current_counter = st.session_state.get('form_counter', 0)
+        
+        # Șterge COMPLET session state (cu excepția parolei)
+        keys_to_keep = {'password_correct'}
+        all_keys = list(st.session_state.keys())
+        for key in all_keys:
+            if key not in keys_to_keep:
+                del st.session_state[key]
+        
+        # INCREMENTEAZĂ counter-ul pentru a forța recrearea widget-urilor cu keys noi
+        st.session_state.form_counter = current_counter + 1
     
     # Counter pentru resetare COMPLETĂ
     if 'form_counter' not in st.session_state:
@@ -291,11 +297,11 @@ with tab2:
     st.markdown("### Echipament & Data")
     col1, col2, col3 = st.columns(3)
     with col1:
-        echipament = st.selectbox("Echipament:", ["Accurio Press C6085", "Canon ImagePress 6010"])
+        echipament = st.selectbox("Echipament:", ["Accurio Press C6085", "Canon ImagePress 6010"], key=f"echipament_{form_key}")
     with col2:
-        st.number_input("Număr comandă:", value=numar_comanda_nou, disabled=True)
+        st.number_input("Număr comandă:", value=numar_comanda_nou, disabled=True, key=f"nr_cmd_{form_key}")
     with col3:
-        data = st.date_input("Data comandă:", value=datetime.now())
+        data = st.date_input("Data comandă:", value=datetime.now(), key=f"data_{form_key}")
 
     st.markdown("### Beneficiar")
     beneficiari = session.query(Beneficiar).order_by(Beneficiar.nume).all()
@@ -303,7 +309,7 @@ with tab2:
         st.warning("Nu există beneficiari. Adaugă mai întâi un beneficiar.")
         st.stop()
     beneficiar_options = [b.nume for b in beneficiari]
-    beneficiar_nume = st.selectbox("Beneficiar*:", beneficiar_options)
+    beneficiar_nume = st.selectbox("Beneficiar*:", beneficiar_options, key=f"beneficiar_{form_key}")
     beneficiar_id = next((b.id for b in beneficiari if b.nume == beneficiar_nume), None)
 
     st.markdown("### Lucrare")
@@ -322,20 +328,20 @@ with tab2:
     st.markdown("### Format")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        latime = st.number_input("Lățime (mm)*:", min_value=1, value=210)
+        latime = st.number_input("Lățime (mm)*:", min_value=1, value=210, key=f"latime_{form_key}")
     with col2:
-        inaltime = st.number_input("Înălțime (mm)*:", min_value=1, value=297)
+        inaltime = st.number_input("Înălțime (mm)*:", min_value=1, value=297, key=f"inaltime_{form_key}")
     with col3:
-        nr_pagini = st.number_input("Număr pagini*:", min_value=2, value=2, step=2)
+        nr_pagini = st.number_input("Număr pagini*:", min_value=2, value=2, step=2, key=f"nr_pag_{form_key}")
         if nr_pagini % 2 != 0:
             st.warning("Numărul de pagini trebuie să fie multiplu de 2!")
     with col4:
-        indice_corectie = st.number_input("Indice corecție:", min_value=0.0001, max_value=1.0, value=1.0000, step=0.0001, format="%.4f")
+        indice_corectie = st.number_input("Indice corecție:", min_value=0.0001, max_value=1.0, value=1.0000, step=0.0001, format="%.4f", key=f"indice_{form_key}")
 
     descriere_lucrare = st.text_area("Descriere lucrare:", height=100, placeholder="Detalii despre lucrare...", key=f"desc_{form_key}")
 
     st.markdown("### Certificare FSC Produs Final")
-    certificare_fsc_produs = st.checkbox("Lucrare certificată FSC (produs final)")
+    certificare_fsc_produs = st.checkbox("Lucrare certificată FSC (produs final)", key=f"fsc_check_{form_key}")
     
     cod_fsc_produs = tip_certificare_fsc_produs = None
     if certificare_fsc_produs:
@@ -344,10 +350,10 @@ with tab2:
         
         col1, col2 = st.columns(2)
         with col1:
-            cod_fsc_produs = st.selectbox("Cod FSC produs*:", list(CODURI_FSC_PRODUS_FINAL.keys()))
+            cod_fsc_produs = st.selectbox("Cod FSC produs*:", list(CODURI_FSC_PRODUS_FINAL.keys()), key=f"cod_fsc_{form_key}")
             st.info(f"Descriere: {CODURI_FSC_PRODUS_FINAL[cod_fsc_produs]}")
         with col2:
-            tip_certificare_fsc_produs = st.selectbox("Tip certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA)
+            tip_certificare_fsc_produs = st.selectbox("Tip certificare FSC*:", CERTIFICARI_FSC_MATERIE_PRIMA, key=f"tip_fsc_{form_key}")
 
     st.markdown("### Hârtie și Tipar")
     # Selectare hârtie cu logica FSC
@@ -368,7 +374,7 @@ with tab2:
             st.stop()
 
     hartie_options = [f"{h.id} - {h.sortiment} ({h.format_hartie}, {h.gramaj}g)" + (" - FSC" if h.fsc_materie_prima else "") for h in hartii_disponibile]
-    selected_hartie = st.selectbox("Sortiment hârtie*:", hartie_options, key="hartie_select")
+    selected_hartie = st.selectbox("Sortiment hârtie*:", hartie_options, key=f"hartie_select_{form_key}")
     hartie_id = int(selected_hartie.split(" - ")[0])
     hartie_selectata = session.get(Hartie, hartie_id)
     format_hartie = hartie_selectata.format_hartie
@@ -380,18 +386,18 @@ with tab2:
         coala_tipar = None
         indice_coala = 1
     else:
-        coala_tipar = st.selectbox("Coală tipar*:", list(coale_tipar_compatibile.keys()))
+        coala_tipar = st.selectbox("Coală tipar*:", list(coale_tipar_compatibile.keys()), key=f"coala_{form_key}")
         indice_coala = coale_tipar_compatibile.get(coala_tipar, 1)
 
-    nr_culori = st.selectbox("Număr culori*:", OPTIUNI_CULORI)
+    nr_culori = st.selectbox("Număr culori*:", OPTIUNI_CULORI, key=f"culori_{form_key}")
 
     # Nr. pag/coala moved here, below Număr culori
-    nr_pagini_pe_coala = st.number_input("Nr. pag/coală*:", min_value=1, value=2, help="Câte pagini încap pe o coală de tipar")
+    nr_pagini_pe_coala = st.number_input("Nr. pag/coală*:", min_value=1, value=2, help="Câte pagini încap pe o coală de tipar", key=f"pag_coala_{form_key}")
 
     st.markdown("### Calcule și Coli")
     # Calculează valorile automat
     nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
-    coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=0, help="Coli suplimentare pentru prisos")
+    coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=0, help="Coli suplimentare pentru prisos", key=f"coli_pris_{form_key}")
     total_coli = nr_coli_tipar + coli_prisoase
     # Greutate în kg cu 3 zecimale rotunjite în sus
     greutate = math.ceil(latime * inaltime * nr_pagini * indice_corectie * hartie_selectata.gramaj * tiraj / (2 * 10**9) * 1000) / 1000
@@ -453,39 +459,39 @@ with tab2:
     col1, col2 = st.columns(2)
     with col1:
         plastifiere_options = ["Fără plastifiere"] + OPTIUNI_PLASTIFIERE
-        plastifiere_idx = st.selectbox("Plastifiere:", plastifiere_options)
+        plastifiere_idx = st.selectbox("Plastifiere:", plastifiere_options, key=f"plastif_{form_key}")
         plastifiere = None if plastifiere_idx == "Fără plastifiere" else plastifiere_idx
         
-        big = st.checkbox("Big")
-        nr_biguri = st.number_input("Număr biguri:", min_value=1, value=2) if big else None
+        big = st.checkbox("Big", key=f"big_{form_key}")
+        nr_biguri = st.number_input("Număr biguri:", min_value=1, value=2, key=f"nr_big_{form_key}") if big else None
         
         # Opțiuni finisare suplimentare
         st.markdown("**Opțiuni finisare:**")
         col1a, col1b = st.columns(2)
         with col1a:
-            capsat = st.checkbox("Capsat")
-            colturi_rotunde = st.checkbox("Colturi rotunde")
-            perfor = st.checkbox("Perfor")
-            spiralare = st.checkbox("Spiralare")
+            capsat = st.checkbox("Capsat", key=f"capsat_{form_key}")
+            colturi_rotunde = st.checkbox("Colturi rotunde", key=f"colturi_{form_key}")
+            perfor = st.checkbox("Perfor", key=f"perfor_{form_key}")
+            spiralare = st.checkbox("Spiralare", key=f"spiral_{form_key}")
         with col1b:
-            stantare = st.checkbox("Stantare")
-            lipire = st.checkbox("Lipire")
-            codita_wobbler = st.checkbox("Codita wobbler")
+            stantare = st.checkbox("Stantare", key=f"stant_{form_key}")
+            lipire = st.checkbox("Lipire", key=f"lipire_{form_key}")
+            codita_wobbler = st.checkbox("Codita wobbler", key=f"codita_{form_key}")
         
-        taiere_cutter = st.checkbox("Tăiere Cutter/Plotter")
+        taiere_cutter = st.checkbox("Tăiere Cutter/Plotter", key=f"cutter_{form_key}")
     
     with col2:
-        laminare = st.checkbox("Laminare")
+        laminare = st.checkbox("Laminare", key=f"lamin_{form_key}")
         format_laminare = numar_laminari = None
         if laminare:
-            format_laminare = st.selectbox("Format laminare*:", FORMATE_LAMINARE)
-            numar_laminari = st.number_input("Număr laminări:", min_value=1, value=1)
+            format_laminare = st.selectbox("Format laminare*:", FORMATE_LAMINARE, key=f"fmt_lamin_{form_key}")
+            numar_laminari = st.number_input("Număr laminări:", min_value=1, value=1, key=f"nr_lamin_{form_key}")
 
     col1, col2 = st.columns(2)
     with col1:
-        detalii_finisare = st.text_area("Detalii finisare:", height=80)
+        detalii_finisare = st.text_area("Detalii finisare:", height=80, key=f"det_finis_{form_key}")
     with col2:
-        detalii_livrare = st.text_area("Detalii livrare:", height=80)
+        detalii_livrare = st.text_area("Detalii livrare:", height=80, key=f"det_livr_{form_key}")
 
     # Calculează coli mari pentru compatibilitate
     coli_mari = total_coli / indice_coala if indice_coala > 0 else None
@@ -568,6 +574,16 @@ with tab2:
                     
                     # Resetează formularul - șterge toate câmpurile și incrementează counter-ul
                     reset_form_fields()
+                    
+                    # Forțează refresh REAL al paginii folosind JavaScript
+                    st.markdown(
+                        """
+                        <script>
+                        window.parent.location.reload();
+                        </script>
+                        """,
+                        unsafe_allow_html=True
+                    )
                     
                     st.balloons()
                     st.rerun()  # Resetează formularul pentru a preveni dublarea comenzilor
@@ -806,8 +822,47 @@ with tab3:
 
                     # Calculează coli mari pentru compatibilitate folosind valorile din afara formularului
                     coli_mari = total_coli / indice_coala_edit if indice_coala_edit > 0 else None
+                    
+                    # Calculează greutatea colilor mari și factorul de conversie
+                    greutate_coli_mari_edit = None
+                    factor_conversie_edit = None
+                    
                     if coli_mari:
-                        st.info(f"**Coli mari necesare:** `{coli_mari:.2f}`")
+                        # Extrage dimensiunile formatului de hârtie
+                        try:
+                            dimensiuni_edit = format_hartie_edit.lower().replace('cm', '').replace('mm', '').strip()
+                            if 'x' in dimensiuni_edit:
+                                parts_edit = dimensiuni_edit.split('x')
+                                latime_coala_cm_edit = float(parts_edit[0].strip())
+                                inaltime_coala_cm_edit = float(parts_edit[1].strip())
+                                
+                                # Calculează greutatea colilor mari în kg
+                                greutate_coli_mari_edit = (latime_coala_cm_edit * inaltime_coala_cm_edit * hartie_selectata_edit.gramaj * coli_mari) / 10**7
+                                greutate_coli_mari_edit = math.ceil(greutate_coli_mari_edit * 1000) / 1000
+                                
+                                # Calculează factorul de conversie
+                                if greutate_coli_mari_edit > 0:
+                                    factor_conversie_edit = greutate / greutate_coli_mari_edit
+                        except:
+                            pass
+                        
+                        # Afișare informații - EXACT CA ÎN FORMULARUL DE ADĂUGARE
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.info(f"**Coli mari necesare:** `{coli_mari:.2f}`")
+                        with col2:
+                            if greutate_coli_mari_edit:
+                                st.info(f"**Greutate coli mari:** `{greutate_coli_mari_edit:.3f} kg`")
+                        with col3:
+                            if factor_conversie_edit:
+                                st.info(f"**Factor conversie:** `{factor_conversie_edit:.4f}`")
+                        
+                        # Validări și avertismente
+                        if factor_conversie_edit:
+                            if factor_conversie_edit > 1:
+                                st.error("❌ **EROARE:** Factorul de conversie este mai mare decât 1! Verifică datele introduse - ceva este greșit!")
+                            elif factor_conversie_edit < 0.5:
+                                st.error("⚠️ **ATENȚIE:** Factorul de conversie este mai mic decât 0.5! Verifică dacă toate datele sunt introduse corect!")
 
                     st.markdown("### Finisare")
                     col1, col2 = st.columns(2)
@@ -958,14 +1013,13 @@ with tab3:
                 
                 with col2:
                     st.write(f"**Nume lucrare:** {comanda.nume_lucrare}")
-                    st.write(f"**PO Client:** {comanda.po_client or '-'}")
                     st.write(f"**Tiraj:** {comanda.tiraj}")
                     st.write(f"**Dimensiuni:** {comanda.latime}x{comanda.inaltime}mm")
                     st.write(f"**Nr. pagini:** {comanda.nr_pagini}")
                 
                 with col3:
                     st.write(f"**Hârtie:** {comanda.hartie.sortiment}")
-                    st.write(f"**Gramaj:** {comanda.hartie.gramaj}g/m²")
+                    st.write(f"**Coală tipar:** {comanda.coala_tipar or '-'}")
                     st.write(f"**Coli tipar:** {comanda.nr_coli_tipar}")
                     st.write(f"**Coli prisoase:** {comanda.coli_prisoase or 0}")
                     st.write(f"**Total coli:** {comanda.total_coli}")
@@ -976,6 +1030,11 @@ with tab3:
                 
                 if comanda.hartie.fsc_materie_prima:
                     st.info(f"🌿 **FSC Materie Primă:** {comanda.hartie.certificare_fsc_materie_prima or '-'} ({comanda.hartie.cod_fsc_materie_prima or '-'})")
+                
+                # Detalii livrare - afișare pe 3 rânduri pentru text mai lung
+                if comanda.detalii_livrare:
+                    st.markdown("### 📦 Detalii Livrare")
+                    st.text_area("Detalii livrare", value=comanda.detalii_livrare, height=100, disabled=True, label_visibility="collapsed", key=f"view_detalii_livrare_{comanda.id}")
                 
                 # Secțiune pentru modificare coli prisoase și finalizare comandă
                 if not readonly and comanda.stare == "In lucru":
