@@ -58,7 +58,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     beneficiar_table = Table(beneficiar_data, colWidths=[12.8*cm])
     beneficiar_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
@@ -76,7 +76,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     lucrare_table = Table(lucrare_data, colWidths=[12.8*cm])
     lucrare_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
@@ -94,7 +94,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     tiraj_po_table = Table(tiraj_po_data, colWidths=[6.4*cm, 6.4*cm])
     tiraj_po_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
@@ -117,7 +117,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     descriere_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),  # Prima linie bold
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),     # Restul normal
-        ('FONTSIZE', (0, 0), (-1, -1), 13),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),     # Grid pe toate celulele
@@ -139,7 +139,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     fsc_table = Table(fsc_data, colWidths=[12.8*cm])
     fsc_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
@@ -158,7 +158,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     coala_culori_table = Table(coala_culori_data, colWidths=[12.8*cm])
     coala_culori_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
@@ -175,8 +175,8 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
         'HartieStyle',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=11,
-        leading=13,
+        fontSize=10,
+        leading=12,
         alignment=TA_LEFT
     )
     
@@ -189,7 +189,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     hartie_coli_table = Table(hartie_coli_data, colWidths=[12.8*cm], rowHeights=[None, 5*mm])
     hartie_coli_table.setStyle(TableStyle([
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 1), (-1, -1), 11),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
@@ -208,7 +208,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     plastifiere_table = Table(plastifiere_data, colWidths=[12.8*cm])
     plastifiere_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
@@ -251,7 +251,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     finisare_table = Table(finisare_data, colWidths=[12.8*cm])
     finisare_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
@@ -270,7 +270,7 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     detalii_table = Table(detalii_data, colWidths=[12.8*cm], rowHeights=[10*mm, 10*mm])
     detalii_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
