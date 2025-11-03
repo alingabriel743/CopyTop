@@ -38,10 +38,10 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     header_data = [
         [comanda.echipament, f"COMANDA NR. {comanda.numar_comanda}/{data_comanda}"]
     ]
-    header_table = Table(header_data, colWidths=[6.4*cm, 6.4*cm], rowHeights=[8*mm])
+    header_table = Table(header_data, colWidths=[6.4*cm, 6.4*cm], rowHeights=[7*mm])
     header_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 14),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
         ('ALIGN', (0, 0), (0, 0), 'LEFT'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
