@@ -200,7 +200,7 @@ with tab1:
         data = []
         for comanda in comenzi:
             data.append({
-                "Nr. Comandă": comanda.numar_comanda,
+                "Nr. Comandă": int(comanda.numar_comanda),
                 "Data": comanda.data.strftime("%d-%m-%Y"),
                 "Beneficiar": comanda.beneficiar.nume,
                 "Nume Lucrare": comanda.nume_lucrare,
@@ -1035,10 +1035,10 @@ with tab3:
                 if comanda.hartie.fsc_materie_prima:
                     st.info(f"🌿 **FSC Materie Primă:** {comanda.hartie.certificare_fsc_materie_prima or '-'} ({comanda.hartie.cod_fsc_materie_prima or '-'})")
                 
-                # Detalii livrare - înălțime redusă la 60
+                # Detalii livrare - înălțime redusă la 40
                 if comanda.detalii_livrare:
                     st.markdown("### 📦 Detalii Livrare")
-                    st.text_area("Detalii livrare", value=comanda.detalii_livrare, height=60, disabled=True, label_visibility="collapsed", key=f"view_detalii_livrare_{comanda.id}")
+                    st.text_area("Detalii livrare", value=comanda.detalii_livrare, height=40, disabled=True, label_visibility="collapsed", key=f"view_detalii_livrare_{comanda.id}")
                 
                 # Secțiune pentru modificare coli prisoase și finalizare comandă
                 if not readonly and comanda.stare == "In lucru":
