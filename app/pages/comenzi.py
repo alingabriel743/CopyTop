@@ -291,7 +291,8 @@ with tab2:
     form_key = st.session_state.form_counter
 
     ultima_comanda = session.query(Comanda).order_by(Comanda.numar_comanda.desc()).first()
-    numar_comanda_nou = 1 if not ultima_comanda else ultima_comanda.numar_comanda + 1
+    # Numerotarea începe de la 3033
+    numar_comanda_nou = 3033 if not ultima_comanda else max(ultima_comanda.numar_comanda + 1, 3033)
 
     # Secțiunea 1: Informații de bază (conform comanda.pdf)
     st.markdown("### Echipament & Data")
