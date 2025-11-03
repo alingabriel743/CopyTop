@@ -1009,7 +1009,13 @@ with tab3:
                     st.write(f"**Echipament:** {comanda.echipament}")
                     st.write(f"**Data:** {comanda.data.strftime('%d-%m-%Y')}")
                     st.write(f"**Beneficiar:** {comanda.beneficiar.nume}")
-                    st.write(f"**Stare:** {comanda.stare}")
+                    # Afișare Cod FSC și Tip certificare în loc de Stare
+                    if comanda.certificare_fsc_produs:
+                        st.write(f"**Cod FSC Produs:** {comanda.cod_fsc_produs or '-'}")
+                        st.write(f"**Tip certificare:** {comanda.tip_certificare_fsc_produs or '-'}")
+                    else:
+                        st.write(f"**Cod FSC Produs:** -")
+                        st.write(f"**Tip certificare:** -")
                 
                 with col2:
                     st.write(f"**Nume lucrare:** {comanda.nume_lucrare}")
@@ -1024,17 +1030,14 @@ with tab3:
                     st.write(f"**Coli prisoase:** {comanda.coli_prisoase or 0}")
                     st.write(f"**Total coli:** {comanda.total_coli}")
                 
-                # Informații FSC
-                if comanda.certificare_fsc_produs:
-                    st.success(f"✅ **FSC Produs Final:** {comanda.tip_certificare_fsc_produs} ({comanda.cod_fsc_produs})")
-                
+                # Informații FSC Materie Primă (păstrăm doar aceasta)
                 if comanda.hartie.fsc_materie_prima:
                     st.info(f"🌿 **FSC Materie Primă:** {comanda.hartie.certificare_fsc_materie_prima or '-'} ({comanda.hartie.cod_fsc_materie_prima or '-'})")
                 
-                # Detalii livrare - afișare pe 3 rânduri pentru text mai lung
+                # Detalii livrare - înălțime redusă la 60
                 if comanda.detalii_livrare:
                     st.markdown("### 📦 Detalii Livrare")
-                    st.text_area("Detalii livrare", value=comanda.detalii_livrare, height=100, disabled=True, label_visibility="collapsed", key=f"view_detalii_livrare_{comanda.id}")
+                    st.text_area("Detalii livrare", value=comanda.detalii_livrare, height=60, disabled=True, label_visibility="collapsed", key=f"view_detalii_livrare_{comanda.id}")
                 
                 # Secțiune pentru modificare coli prisoase și finalizare comandă
                 if not readonly and comanda.stare == "In lucru":
