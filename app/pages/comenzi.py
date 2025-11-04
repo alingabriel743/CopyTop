@@ -228,7 +228,7 @@ with tab1:
         with col2:
             # Export PDF pentru o comandă selectată
             if len(comenzi) > 0:
-                comanda_options_pdf = [f"#{c.numar_comanda} - {c.nume_lucrare}" for c in comenzi]
+                comanda_options_pdf = [f"#{int(c.numar_comanda)} - {c.nume_lucrare}" for c in comenzi]
                 selected_comanda_pdf = st.selectbox("Selectează comandă pentru PDF:", comanda_options_pdf, key="pdf_export")
                 
                 if selected_comanda_pdf:
@@ -640,7 +640,7 @@ with tab3:
     if not comenzi:
         st.info("Nu există comenzi în baza de date.")
     else:
-        comanda_options = [f"#{c.numar_comanda} - {c.nume_lucrare} ({c.beneficiar.nume})" for c in comenzi]
+        comanda_options = [f"#{int(c.numar_comanda)} - {c.nume_lucrare} ({c.beneficiar.nume})" for c in comenzi]
         selected_comanda = st.selectbox("Selectează comanda:", comanda_options)
         
         if selected_comanda:
@@ -991,7 +991,7 @@ with tab3:
                                     comanda.stare = stare_comanda
 
                                     session.commit()
-                                    st.success(f"✅ Comanda #{comanda.numar_comanda} a fost actualizată cu succes!")
+                                    st.success(f"✅ Comanda #{int(comanda.numar_comanda)} a fost actualizată cu succes!")
                                     st.balloons()
                                     st.rerun()
                                     
@@ -1006,7 +1006,7 @@ with tab3:
                 # VIZUALIZARE NORMALĂ
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.write(f"**Număr comandă:** #{comanda.numar_comanda}")
+                    st.write(f"**Număr comandă:** #{int(comanda.numar_comanda)}")
                     st.write(f"**Echipament:** {comanda.echipament}")
                     st.write(f"**Data:** {comanda.data.strftime('%d-%m-%Y')}")
                     st.write(f"**Beneficiar:** {comanda.beneficiar.nume}")
@@ -1103,7 +1103,7 @@ with tab3:
                                             hartie.greutate = hartie.calculeaza_greutate()
                                             comanda.stare = "Finalizată"
                                             session.commit()
-                                            st.success(f"✅ Comanda #{comanda.numar_comanda} a fost finalizată! Stoc actualizat: -{consum_hartie:.2f} coli")
+                                            st.success(f"✅ Comanda #{int(comanda.numar_comanda)} a fost finalizată! Stoc actualizat: -{consum_hartie:.2f} coli")
                                             st.balloons()
                                             st.rerun()
                                     else:
@@ -1113,7 +1113,7 @@ with tab3:
                                     # Dacă nu sunt date despre coli, doar marchează ca finalizată
                                     comanda.stare = "Finalizată"
                                     session.commit()
-                                    st.success(f"✅ Comanda #{comanda.numar_comanda} a fost finalizată!")
+                                    st.success(f"✅ Comanda #{int(comanda.numar_comanda)} a fost finalizată!")
                                     st.balloons()
                                     st.rerun()
                             except Exception as e:
