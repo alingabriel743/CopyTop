@@ -200,23 +200,123 @@ with tab1:
         data = []
         for comanda in comenzi:
             data.append({
-                "Nr. Comandă": int(comanda.numar_comanda),
+                "ID": comanda.id,  # Ascuns, folosit pentru identificare
+                "Nr. Comandă": str(int(comanda.numar_comanda)),
                 "Data": comanda.data.strftime("%d-%m-%Y"),
                 "Beneficiar": comanda.beneficiar.nume,
                 "Nume Lucrare": comanda.nume_lucrare,
                 "Tiraj": comanda.tiraj,
                 "Hârtie": comanda.hartie.sortiment,
                 "Dimensiuni": f"{comanda.latime}x{comanda.inaltime}mm",
-                "Nr. Pagini": comanda.nr_pagini,
-                "Coli Tipar": comanda.nr_coli_tipar or "-",
-                "FSC Produs": "Da" if comanda.certificare_fsc_produs else "Nu",
+                "Total Coli": comanda.total_coli or "-",
+                "Cod FSC": comanda.cod_fsc_produs or "-",
+                "Tip Certificare": comanda.tip_certificare_fsc_produs or "-",
                 "Stare": comanda.stare,
-                "Facturată": "Da" if comanda.facturata else "Nu"
+                "Facturată": comanda.facturata  # Ascuns, folosit pentru validare
             })
         
-        # Afișare tabel
+        # Afișare tabel editabil
         df = pd.DataFrame(data)
-        st.dataframe(df, use_container_width=True)
+        
+        edited_df = st.data_editor(
+            df,
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "ID": None,  # Ascunde coloana ID
+                "Facturată": None,  # Ascunde coloana Facturată
+                "Stare": st.column_config.SelectboxColumn(
+                    "Stare",
+                    help="Schimbă starea comenzii direct din tabel",
+                    options=["In lucru", "Finalizată", "Facturată"],
+                    required=True
+                )
+            },
+            disabled=["Nr. Comandă", "Data", "Beneficiar", "Nume Lucrare", "Tiraj", "Hârtie", "Dimensiuni", "Total Coli", "Cod FSC", "Tip Certificare"],
+            key="comenzi_list_editor"
+        )
+        
+        # Verifică dacă s-au făcut modificări
+        if not edited_df.equals(df):
+            # Găsește rândurile modificate
+            for idx in edited_df.index:
+                if edited_df.loc[idx, "Stare"] != df.loc[idx, "Stare"]:
+                    comanda_id = edited_df.loc[idx, "ID"]
+                    stare_noua = edited_df.loc[idx, "Stare"]
+                    este_facturata = edited_df.loc[idx, "Facturată"]
+                    
+                    # Validare: nu permite schimbarea stării pentru comenzi facturate
+                    if este_facturata and stare_noua != "Facturată":
+                        st.error(f"⚠️ Comanda #{edited_df.loc[idx, 'Nr. Comandă']} este facturată și nu poate fi modificată!")
+                        st.rerun()
+                    
+                    # Actualizează starea în baza de date
+                    try:
+                        comanda = session.query(Comanda).get(comanda_id)
+                        if comanda:
+                            stare_veche = comanda.stare
+                            
+                            # Logica specială pentru schimbarea stării
+                            if stare_veche == "In lucru" and stare_noua == "Finalizată":
+                                # Finalizare comandă - scade stocul de hârtie
+                                if comanda.total_coli and comanda.total_coli > 0 and comanda.coala_tipar:
+                                    coale_tipar_compat = compatibilitate_hartie_coala.get(comanda.hartie.format_hartie, {})
+                                    indice_coala = coale_tipar_compat.get(comanda.coala_tipar, 1) if coale_tipar_compat else 1
+                                    consum_hartie = comanda.total_coli / indice_coala if indice_coala > 0 else 0
+                                    
+                                    hartie = session.query(Hartie).get(comanda.hartie_id)
+                                    if hartie:
+                                        if consum_hartie > hartie.stoc:
+                                            st.error(f"❌ Stoc insuficient pentru comanda #{edited_df.loc[idx, 'Nr. Comandă']}! Necesare: {consum_hartie:.2f} coli, Disponibile: {hartie.stoc:.2f} coli")
+                                            st.rerun()
+                                        else:
+                                            hartie.stoc -= consum_hartie
+                                            hartie.greutate = hartie.calculeaza_greutate()
+                                            comanda.stare = stare_noua
+                                            st.success(f"✅ Comanda #{edited_df.loc[idx, 'Nr. Comandă']} finalizată! Stoc actualizat: -{consum_hartie:.2f} coli")
+                                    else:
+                                        st.error("Eroare: Hârtia nu a fost găsită!")
+                                        st.rerun()
+                                else:
+                                    comanda.stare = stare_noua
+                                    st.success(f"✅ Comanda #{edited_df.loc[idx, 'Nr. Comandă']} finalizată!")
+                            
+                            elif stare_veche == "Finalizată" and stare_noua == "In lucru":
+                                # Revenire la In lucru - restituie stocul de hârtie
+                                if comanda.total_coli and comanda.total_coli > 0 and comanda.coala_tipar:
+                                    coale_tipar_compat = compatibilitate_hartie_coala.get(comanda.hartie.format_hartie, {})
+                                    indice_coala = coale_tipar_compat.get(comanda.coala_tipar, 1) if coale_tipar_compat else 1
+                                    consum_hartie = comanda.total_coli / indice_coala if indice_coala > 0 else 0
+                                    
+                                    hartie = session.query(Hartie).get(comanda.hartie_id)
+                                    if hartie:
+                                        hartie.stoc += consum_hartie
+                                        hartie.greutate = hartie.calculeaza_greutate()
+                                        comanda.stare = stare_noua
+                                        st.success(f"✅ Comanda #{edited_df.loc[idx, 'Nr. Comandă']} revenită la 'In lucru'! Stoc restituit: +{consum_hartie:.2f} coli")
+                                    else:
+                                        st.error("Eroare: Hârtia nu a fost găsită!")
+                                        st.rerun()
+                                else:
+                                    comanda.stare = stare_noua
+                                    st.success(f"✅ Comanda #{edited_df.loc[idx, 'Nr. Comandă']} revenită la 'In lucru'!")
+                            
+                            elif stare_noua == "Facturată":
+                                st.error(f"⚠️ Starea 'Facturată' se setează automat din modulul de Facturare!")
+                                st.rerun()
+                            
+                            else:
+                                # Alte schimbări de stare (fără impact asupra stocului)
+                                comanda.stare = stare_noua
+                                st.success(f"✅ Starea comenzii #{edited_df.loc[idx, 'Nr. Comandă']} a fost actualizată la '{stare_noua}'!")
+                            
+                            session.commit()
+                            st.rerun()
+                    
+                    except Exception as e:
+                        session.rollback()
+                        st.error(f"Eroare la actualizare: {e}")
+                        st.rerun()
         
         # Export opțiuni
         col1, col2 = st.columns(2)
@@ -613,7 +713,7 @@ with tab2:
                         st.download_button(
                             label="Descarcă PDF",
                             data=pdf_buffer,
-                            file_name=f"comanda_{comanda_refresh.numar_comanda}_{comanda_refresh.data.strftime('%Y%m%d')}.pdf",
+                            file_name=f"comanda_{int(comanda_refresh.numar_comanda)}_{comanda_refresh.data.strftime('%Y%m%d')}.pdf",
                             mime="application/pdf",
                             key="download_new_comanda_pdf"
                         )
@@ -754,7 +854,7 @@ with tab3:
                         echipament = st.selectbox("Echipament:", ["Accurio Press C6085", "Canon ImagePress 6010"], 
                                                 index=0 if comanda.echipament == "Accurio Press C6085" else 1)
                     with col2:
-                        st.number_input("Număr comandă:", value=comanda.numar_comanda, disabled=True)
+                        st.number_input("Număr comandă:", value=int(comanda.numar_comanda), disabled=True)
                     with col3:
                         data = st.date_input("Data comandă:", value=comanda.data)
 
@@ -1132,7 +1232,7 @@ with tab3:
                             st.download_button(
                                 label="Descarcă PDF",
                                 data=pdf_buffer,
-                                file_name=f"comanda_{comanda.numar_comanda}_{comanda.data.strftime('%Y%m%d')}.pdf",
+                                file_name=f"comanda_{int(comanda.numar_comanda)}_{comanda.data.strftime('%Y%m%d')}.pdf",
                                 mime="application/pdf",
                                 key=f"download_pdf_{comanda.id}"
                             )

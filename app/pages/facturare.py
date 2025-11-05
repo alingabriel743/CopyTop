@@ -116,31 +116,67 @@ with tab1:
         st.warning("Nu există beneficiari în baza de date.")
         st.stop()
 
-    beneficiar_options = ["Toți beneficiarii"] + [b.nume for b in beneficiari]
-    selected_beneficiar = st.selectbox("Selectează beneficiar:", beneficiar_options)
+    col1, col2 = st.columns(2)
+    with col1:
+        beneficiar_options = ["Toți beneficiarii"] + [b.nume for b in beneficiari]
+        selected_beneficiar = st.selectbox("Selectează beneficiar:", beneficiar_options)
     
-    # Resetează session state dacă s-a schimbat beneficiarul
-    if 'last_beneficiar' not in st.session_state or st.session_state.last_beneficiar != selected_beneficiar:
+    with col2:
+        stare_filter = st.selectbox(
+            "Stare comenzi:",
+            ["Finalizată", "In lucru", "Toate (Finalizată + In lucru)"],
+            help="Selectează starea comenzilor de afișat"
+        )
+    
+    # Resetează session state dacă s-a schimbat beneficiarul sau filtrul de stare
+    if ('last_beneficiar' not in st.session_state or st.session_state.last_beneficiar != selected_beneficiar or
+        'last_stare_filter' not in st.session_state or st.session_state.last_stare_filter != stare_filter):
         st.session_state.last_beneficiar = selected_beneficiar
+        st.session_state.last_stare_filter = stare_filter
         if 'comenzi_editor_data' in st.session_state:
             del st.session_state.comenzi_editor_data
 
-    # Obține comenzile nefacturate și finalizate
+    # Obține comenzile nefacturate conform filtrului de stare
     # Refresh explicit al sesiunii pentru a obține date actualizate
     session.expire_all()
     
+    # Construire query bazat pe filtrul de stare
     if selected_beneficiar == "Toți beneficiarii":
-        comenzi_nefacturate = session.query(Comanda).filter(
-            Comanda.facturata == False,
-            Comanda.stare == "Finalizată"
-        ).order_by(Comanda.numar_comanda.desc()).all()
+        if stare_filter == "Finalizată":
+            comenzi_nefacturate = session.query(Comanda).filter(
+                Comanda.facturata == False,
+                Comanda.stare == "Finalizată"
+            ).order_by(Comanda.numar_comanda.desc()).all()
+        elif stare_filter == "In lucru":
+            comenzi_nefacturate = session.query(Comanda).filter(
+                Comanda.facturata == False,
+                Comanda.stare == "In lucru"
+            ).order_by(Comanda.numar_comanda.desc()).all()
+        else:  # Toate
+            comenzi_nefacturate = session.query(Comanda).filter(
+                Comanda.facturata == False,
+                Comanda.stare.in_(["Finalizată", "In lucru"])
+            ).order_by(Comanda.numar_comanda.desc()).all()
     else:
         beneficiar_id = next((b.id for b in beneficiari if b.nume == selected_beneficiar), None)
-        comenzi_nefacturate = session.query(Comanda).filter(
-            Comanda.beneficiar_id == beneficiar_id,
-            Comanda.facturata == False,
-            Comanda.stare == "Finalizată"
-        ).order_by(Comanda.numar_comanda.desc()).all()
+        if stare_filter == "Finalizată":
+            comenzi_nefacturate = session.query(Comanda).filter(
+                Comanda.beneficiar_id == beneficiar_id,
+                Comanda.facturata == False,
+                Comanda.stare == "Finalizată"
+            ).order_by(Comanda.numar_comanda.desc()).all()
+        elif stare_filter == "In lucru":
+            comenzi_nefacturate = session.query(Comanda).filter(
+                Comanda.beneficiar_id == beneficiar_id,
+                Comanda.facturata == False,
+                Comanda.stare == "In lucru"
+            ).order_by(Comanda.numar_comanda.desc()).all()
+        else:  # Toate
+            comenzi_nefacturate = session.query(Comanda).filter(
+                Comanda.beneficiar_id == beneficiar_id,
+                Comanda.facturata == False,
+                Comanda.stare.in_(["Finalizată", "In lucru"])
+            ).order_by(Comanda.numar_comanda.desc()).all()
 
     if not comenzi_nefacturate:
         st.info("Nu există comenzi nefacturate pentru acest beneficiar.")
