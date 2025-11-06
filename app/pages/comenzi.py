@@ -218,6 +218,9 @@ with tab1:
         # Afișare tabel editabil
         df = pd.DataFrame(data)
         
+        # Determină coloanele disabled - Stare este disabled pentru comenzile facturate
+        disabled_columns = ["Nr. Comandă", "Data", "Beneficiar", "Nume Lucrare", "Tiraj", "Hârtie", "Dimensiuni", "Total Coli", "Cod FSC", "Tip Certificare"]
+        
         edited_df = st.data_editor(
             df,
             hide_index=True,
@@ -227,12 +230,12 @@ with tab1:
                 "Facturată": None,  # Ascunde coloana Facturată
                 "Stare": st.column_config.SelectboxColumn(
                     "Stare",
-                    help="Schimbă starea comenzii direct din tabel",
-                    options=["In lucru", "Finalizată", "Facturată"],
+                    help="Schimbă starea comenzii direct din tabel (comenzile facturate nu pot fi modificate)",
+                    options=["In lucru", "Finalizată"],
                     required=True
                 )
             },
-            disabled=["Nr. Comandă", "Data", "Beneficiar", "Nume Lucrare", "Tiraj", "Hârtie", "Dimensiuni", "Total Coli", "Cod FSC", "Tip Certificare"],
+            disabled=disabled_columns,
             key="comenzi_list_editor"
         )
         
@@ -1031,10 +1034,27 @@ with tab3:
                                 st.error("Pentru certificare FSC produs final, hârtia trebuie să fie certificată FSC materie primă!")
                             else:
                                 try:
-                                    # Verifică dacă se schimbă starea din "Finalizată" la "In lucru"
-                                    # În acest caz, trebuie să restituim stocul de hârtie
-                                    if comanda.stare == "Finalizată" and stare_comanda == "In lucru":
-                                        # Calculează consumul de hârtie care trebuie restituit
+                                    # Gestionare schimbări de stare cu impact asupra stocului
+                                    if comanda.stare == "In lucru" and stare_comanda == "Finalizată":
+                                        # Finalizare comandă - scade stocul de hârtie
+                                        if total_coli and total_coli > 0 and coala_tipar_edit:
+                                            coale_tipar_compat_fin = compatibilitate_hartie_coala.get(format_hartie_edit, {})
+                                            indice_coala_fin = coale_tipar_compat_fin.get(coala_tipar_edit, 1) if coale_tipar_compat_fin else 1
+                                            consum_hartie_fin = total_coli / indice_coala_fin if indice_coala_fin > 0 else 0
+                                            
+                                            # Actualizează stocul hârtiei
+                                            hartie_fin = session.query(Hartie).get(hartie_id_edit)
+                                            if hartie_fin:
+                                                if consum_hartie_fin > hartie_fin.stoc:
+                                                    st.error(f"❌ Stoc insuficient! Necesare: {consum_hartie_fin:.2f} coli, Disponibile: {hartie_fin.stoc:.2f} coli")
+                                                    session.rollback()
+                                                    st.stop()
+                                                else:
+                                                    hartie_fin.stoc -= consum_hartie_fin
+                                                    hartie_fin.greutate = hartie_fin.calculeaza_greutate()
+                                    
+                                    elif comanda.stare == "Finalizată" and stare_comanda == "In lucru":
+                                        # Revenire la In lucru - restituie stocul de hârtie
                                         if comanda.total_coli and comanda.total_coli > 0 and comanda.coala_tipar:
                                             coale_tipar_compat_rest = compatibilitate_hartie_coala.get(comanda.hartie.format_hartie, {})
                                             indice_coala_rest = coale_tipar_compat_rest.get(comanda.coala_tipar, 1) if coale_tipar_compat_rest else 1
