@@ -21,3 +21,4 @@ reportlab==4.4.4
 python-dotenv==1.1.1
 pydantic==2.11.9
 tomli==2.2.1
+schedule==1.2.2

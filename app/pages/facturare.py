@@ -110,15 +110,18 @@ with tab1:
             st.error(eroare)
         del st.session_state.facturare_error_msg
     
-    # Selecția beneficiarului - sortați alfabetic
-    beneficiari = session.query(Beneficiar).order_by(Beneficiar.nume).all()
-    if not beneficiari:
-        st.warning("Nu există beneficiari în baza de date.")
+    # Obține doar beneficiarii care au comenzi nefacturate
+    beneficiari_cu_comenzi = session.query(Beneficiar).join(Comanda).filter(
+        Comanda.facturata == False
+    ).distinct().order_by(Beneficiar.nume).all()
+    
+    if not beneficiari_cu_comenzi:
+        st.info("Nu există beneficiari cu comenzi nefacturate.")
         st.stop()
 
     col1, col2 = st.columns(2)
     with col1:
-        beneficiar_options = ["Toți beneficiarii"] + [b.nume for b in beneficiari]
+        beneficiar_options = ["Toți beneficiarii"] + [b.nume for b in beneficiari_cu_comenzi]
         selected_beneficiar = st.selectbox("Selectează beneficiar:", beneficiar_options)
     
     with col2:
@@ -158,7 +161,7 @@ with tab1:
                 Comanda.stare.in_(["Finalizată", "In lucru"])
             ).order_by(Comanda.numar_comanda.desc()).all()
     else:
-        beneficiar_id = next((b.id for b in beneficiari if b.nume == selected_beneficiar), None)
+        beneficiar_id = next((b.id for b in beneficiari_cu_comenzi if b.nume == selected_beneficiar), None)
         if stare_filter == "Finalizată":
             comenzi_nefacturate = session.query(Comanda).filter(
                 Comanda.beneficiar_id == beneficiar_id,
@@ -194,11 +197,10 @@ with tab1:
                 "Data": comanda.data.strftime("%d-%m-%Y"),
                 "Nume Lucrare": comanda.nume_lucrare,
                 "Tiraj": comanda.tiraj,
+                "Preț": comanda.pret or 0.0,
                 "PO Client": comanda.po_client or "-",
-                "FSC": "Da" if comanda.certificare_fsc_produs else "Nu",
                 "Cod FSC": comanda.cod_fsc_produs or "-",
-                "Certificare FSC": comanda.tip_certificare_fsc_produs or "-",
-                "Preț": comanda.pret or 0.0
+                "Certificare FSC": comanda.tip_certificare_fsc_produs or "-"
             })
         
         # Afișează comenzile cu posibilitate de selecție
@@ -237,7 +239,7 @@ with tab1:
                     max_chars=100
                 )
             },
-            disabled=["Nr. Comandă", "Beneficiar", "Data", "Nume Lucrare", "Tiraj", "FSC", "Cod FSC", "Certificare FSC"],
+            disabled=["Nr. Comandă", "Beneficiar", "Data", "Nume Lucrare", "Tiraj", "Cod FSC", "Certificare FSC"],
             key="comenzi_selector"
         )
         

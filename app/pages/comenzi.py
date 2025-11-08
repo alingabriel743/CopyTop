@@ -208,7 +208,8 @@ with tab1:
                 "Tiraj": comanda.tiraj,
                 "Hârtie": comanda.hartie.sortiment,
                 "Dimensiuni": f"{comanda.latime}x{comanda.inaltime}mm",
-                "Total Coli": comanda.total_coli or "-",
+                "Coli Tipar": comanda.nr_coli_tipar or "-",
+                "Coli Prisoase": comanda.coli_prisoase or 0,
                 "Cod FSC": comanda.cod_fsc_produs or "-",
                 "Tip Certificare": comanda.tip_certificare_fsc_produs or "-",
                 "Stare": comanda.stare,
@@ -219,7 +220,7 @@ with tab1:
         df = pd.DataFrame(data)
         
         # Determină coloanele disabled - Stare este disabled pentru comenzile facturate
-        disabled_columns = ["Nr. Comandă", "Data", "Beneficiar", "Nume Lucrare", "Tiraj", "Hârtie", "Dimensiuni", "Total Coli", "Cod FSC", "Tip Certificare"]
+        disabled_columns = ["Nr. Comandă", "Data", "Beneficiar", "Nume Lucrare", "Tiraj", "Hârtie", "Dimensiuni", "Coli Tipar", "Coli Prisoase", "Cod FSC", "Tip Certificare"]
         
         edited_df = st.data_editor(
             df,
