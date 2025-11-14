@@ -208,6 +208,7 @@ with tab1:
                 "Tiraj": comanda.tiraj,
                 "Hârtie": comanda.hartie.sortiment,
                 "Dimensiuni": f"{comanda.latime}x{comanda.inaltime}mm",
+                "Coală Tipar": comanda.coala_tipar or "-",
                 "Coli Tipar": comanda.nr_coli_tipar or "-",
                 "Coli Prisoase": comanda.coli_prisoase or 0,
                 "Cod FSC": comanda.cod_fsc_produs or "-",
@@ -220,7 +221,7 @@ with tab1:
         df = pd.DataFrame(data)
         
         # Determină coloanele disabled - Stare este disabled pentru comenzile facturate
-        disabled_columns = ["Nr. Comandă", "Data", "Beneficiar", "Nume Lucrare", "Tiraj", "Hârtie", "Dimensiuni", "Coli Tipar", "Coli Prisoase", "Cod FSC", "Tip Certificare"]
+        disabled_columns = ["Nr. Comandă", "Data", "Beneficiar", "Nume Lucrare", "Tiraj", "Hârtie", "Dimensiuni", "Coală Tipar", "Coli Tipar", "Coli Prisoase", "Cod FSC", "Tip Certificare"]
         
         edited_df = st.data_editor(
             df,
@@ -323,36 +324,81 @@ with tab1:
                         st.rerun()
         
         # Export opțiuni
+        st.markdown("---")
+        st.markdown("### 📥 Export Opțiuni")
+        
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Export Excel"):
+            if st.button("📊 Export Excel", use_container_width=True):
                 df.to_excel("comenzi.xlsx", index=False)
                 st.success("Datele au fost exportate în fișierul comenzi.xlsx!")
         
         with col2:
-            # Export PDF pentru o comandă selectată
-            if len(comenzi) > 0:
-                comanda_options_pdf = [f"#{int(c.numar_comanda)} - {c.nume_lucrare}" for c in comenzi]
-                selected_comanda_pdf = st.selectbox("Selectează comandă pentru PDF:", comanda_options_pdf, key="pdf_export")
+            pass  # Reserved for future use
+        
+        # Export PDF multiplu
+        st.markdown("---")
+        st.markdown("### 📄 Export PDF Comenzi")
+        st.info("💡 Selectează comenzile pentru care vrei să generezi PDF-uri. Fiecare PDF va avea propriul buton de descărcare.")
+        
+        # Multiselect pentru comenzi
+        comanda_options_multi = [f"#{int(c.numar_comanda)} - {c.nume_lucrare} ({c.beneficiar.nume})" for c in comenzi]
+        selected_comenzi_multi = st.multiselect(
+            "Selectează comenzile:",
+            comanda_options_multi,
+            key="pdf_multi_export",
+            help="Poți selecta mai multe comenzi"
+        )
+        
+        if selected_comenzi_multi:
+            st.write(f"**{len(selected_comenzi_multi)} comenzi selectate**")
+            
+            if st.button("🔄 Generează PDF-uri", type="primary", use_container_width=True):
+                st.session_state.pdf_generated = True
+                st.session_state.selected_comenzi_for_pdf = selected_comenzi_multi
+                st.rerun()
+        
+        # Afișează butoanele de download pentru PDF-urile generate
+        if st.session_state.get('pdf_generated', False) and st.session_state.get('selected_comenzi_for_pdf'):
+            st.markdown("---")
+            st.markdown("### ⬇️ Descarcă PDF-uri Generate")
+            
+            # Creează coloane pentru butoane (max 3 pe rând)
+            comenzi_for_pdf = st.session_state.selected_comenzi_for_pdf
+            num_cols = min(3, len(comenzi_for_pdf))
+            
+            for i in range(0, len(comenzi_for_pdf), num_cols):
+                cols = st.columns(num_cols)
                 
-                if selected_comanda_pdf:
-                    numar_comanda_pdf = int(selected_comanda_pdf.split(" - ")[0].replace("#", ""))
-                    comanda_selectata = next((c for c in comenzi if c.numar_comanda == numar_comanda_pdf), None)
+                for j, comanda_str in enumerate(comenzi_for_pdf[i:i+num_cols]):
+                    # Extrage numărul comenzii
+                    numar_comanda_multi = int(comanda_str.split(" - ")[0].replace("#", ""))
+                    comanda_multi = next((c for c in comenzi if c.numar_comanda == numar_comanda_multi), None)
                     
-                    if comanda_selectata and st.button("📄 Export PDF"):
-                        try:
-                            pdf_buffer = genereaza_comanda_pdf(comanda_selectata, comanda_selectata.beneficiar, comanda_selectata.hartie)
-                            
-                            st.download_button(
-                                label="Descarcă PDF",
-                                data=pdf_buffer,
-                                file_name=f"comanda_{comanda_selectata.numar_comanda}_{comanda_selectata.data.strftime('%Y%m%d')}.pdf",
-                                mime="application/pdf",
-                                key="download_comanda_pdf"
-                            )
-                            st.success("PDF generat cu succes!")
-                        except Exception as e:
-                            st.error(f"Eroare la generarea PDF: {e}")
+                    if comanda_multi:
+                        with cols[j]:
+                            try:
+                                # Generează PDF
+                                pdf_buffer = genereaza_comanda_pdf(comanda_multi, comanda_multi.beneficiar, comanda_multi.hartie)
+                                
+                                # Buton de download
+                                st.download_button(
+                                    label=f"📄 #{int(comanda_multi.numar_comanda)}",
+                                    data=pdf_buffer,
+                                    file_name=f"comanda_{int(comanda_multi.numar_comanda)}_{comanda_multi.data.strftime('%Y%m%d')}.pdf",
+                                    mime="application/pdf",
+                                    key=f"download_pdf_multi_{comanda_multi.id}",
+                                    use_container_width=True
+                                )
+                                st.caption(f"{comanda_multi.nume_lucrare[:30]}...")
+                            except Exception as e:
+                                st.error(f"Eroare: {e}")
+            
+            # Buton pentru a reseta selecția
+            if st.button("🔄 Selectează alte comenzi", use_container_width=True):
+                st.session_state.pdf_generated = False
+                st.session_state.selected_comenzi_for_pdf = []
+                st.rerun()
     else:
         st.info("Nu există comenzi pentru filtrele selectate.")
 
@@ -733,13 +779,27 @@ with tab3:
     with col1:
         stare_filter_edit = st.selectbox("Filtrează după stare:", ["Toate stările", "In lucru", "Finalizată", "Facturată"], index=1, key="edit_stare_filter")
     with col2:
-        pass  # Empty for spacing
+        # Filtrare după beneficiar
+        beneficiari_edit = session.query(Beneficiar).order_by(Beneficiar.nume).all()
+        beneficiar_options_edit = ["Toți beneficiarii"] + [b.nume for b in beneficiari_edit]
+        selected_beneficiar_edit = st.selectbox("Filtrează după client:", beneficiar_options_edit, key="edit_beneficiar_filter")
     
-    # Construire query cu filtru
-    if stare_filter_edit == "Toate stările":
-        comenzi = session.query(Comanda).join(Beneficiar).order_by(Comanda.numar_comanda.desc()).all()
+    # Construire query cu filtre
+    conditii_edit = []
+    
+    if stare_filter_edit != "Toate stările":
+        conditii_edit.append(Comanda.stare == stare_filter_edit)
+    
+    if selected_beneficiar_edit != "Toți beneficiarii":
+        beneficiar_id_edit = next((b.id for b in beneficiari_edit if b.nume == selected_beneficiar_edit), None)
+        if beneficiar_id_edit:
+            conditii_edit.append(Comanda.beneficiar_id == beneficiar_id_edit)
+    
+    # Obținere comenzi cu filtre aplicate
+    if conditii_edit:
+        comenzi = session.query(Comanda).join(Beneficiar).filter(*conditii_edit).order_by(Comanda.numar_comanda.desc()).all()
     else:
-        comenzi = session.query(Comanda).join(Beneficiar).filter(Comanda.stare == stare_filter_edit).order_by(Comanda.numar_comanda.desc()).all()
+        comenzi = session.query(Comanda).join(Beneficiar).order_by(Comanda.numar_comanda.desc()).all()
     
     if not comenzi:
         st.info("Nu există comenzi în baza de date.")
@@ -755,8 +815,49 @@ with tab3:
             if readonly:
                 st.warning("⚠️ Această comandă este deja facturată și nu poate fi modificată.")
             
-            # Toggle pentru modul editare
-            if not readonly:
+            # Verificare stare comandă pentru editare
+            is_finalized = comanda.stare == "Finalizată"
+            
+            # Afișare avertisment pentru comenzi finalizate
+            if is_finalized and not readonly:
+                st.warning("⚠️ Această comandă este finalizată. Pentru a face modificări, trebuie să o revii la starea 'In lucru'.")
+                st.info("💡 Când revii comanda la 'In lucru', stocul de hârtie va fi restituit automat.")
+                
+                # Buton pentru revenire la "In lucru"
+                if st.button("🔄 Revino la 'In lucru'", type="primary", key="revert_to_in_lucru"):
+                    try:
+                        # Restituie stocul de hârtie
+                        if comanda.total_coli and comanda.total_coli > 0 and comanda.coala_tipar:
+                            coale_tipar_compat_rest = compatibilitate_hartie_coala.get(comanda.hartie.format_hartie, {})
+                            indice_coala_rest = coale_tipar_compat_rest.get(comanda.coala_tipar, 1) if coale_tipar_compat_rest else 1
+                            consum_hartie_rest = comanda.total_coli / indice_coala_rest if indice_coala_rest > 0 else 0
+                            
+                            # Restituie stocul
+                            hartie_rest = session.query(Hartie).get(comanda.hartie_id)
+                            if hartie_rest:
+                                hartie_rest.stoc += consum_hartie_rest
+                                hartie_rest.greutate = hartie_rest.calculeaza_greutate()
+                                comanda.stare = "In lucru"
+                                session.commit()
+                                st.success(f"✅ Comanda #{int(comanda.numar_comanda)} a fost revenită la 'In lucru'! Stoc restituit: +{consum_hartie_rest:.2f} coli")
+                                st.balloons()
+                                st.rerun()
+                            else:
+                                st.error("Eroare: Hârtia nu a fost găsită!")
+                                session.rollback()
+                        else:
+                            # Dacă nu sunt date despre coli, doar schimbă starea
+                            comanda.stare = "In lucru"
+                            session.commit()
+                            st.success(f"✅ Comanda #{int(comanda.numar_comanda)} a fost revenită la 'In lucru'!")
+                            st.balloons()
+                            st.rerun()
+                    except Exception as e:
+                        session.rollback()
+                        st.error(f"Eroare la revenirea la 'In lucru': {e}")
+            
+            # Toggle pentru modul editare - doar pentru comenzi "In lucru"
+            if not readonly and not is_finalized:
                 edit_mode = st.toggle("🔧 Mod editare", key="edit_mode_toggle")
             else:
                 edit_mode = False
@@ -1144,6 +1245,8 @@ with tab3:
                     st.write(f"**Tiraj:** {comanda.tiraj}")
                     st.write(f"**Dimensiuni:** {comanda.latime}x{comanda.inaltime}mm")
                     st.write(f"**Nr. pagini:** {comanda.nr_pagini}")
+                    st.write(f"**Nr. culori:** {comanda.nr_culori}")
+                    st.write(f"**Plastifiere:** {comanda.plastifiere or 'Fără plastifiere'}")
                 
                 with col3:
                     st.write(f"**Hârtie:** {comanda.hartie.sortiment}")

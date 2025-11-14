@@ -119,7 +119,7 @@ with tab1:
         st.info("Nu există beneficiari cu comenzi nefacturate.")
         st.stop()
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         beneficiar_options = ["Toți beneficiarii"] + [b.nume for b in beneficiari_cu_comenzi]
         selected_beneficiar = st.selectbox("Selectează beneficiar:", beneficiar_options)
@@ -131,11 +131,20 @@ with tab1:
             help="Selectează starea comenzilor de afișat"
         )
     
-    # Resetează session state dacă s-a schimbat beneficiarul sau filtrul de stare
+    with col3:
+        pret_filter = st.selectbox(
+            "Filtrare preț:",
+            ["Toate", "Cu preț setat", "Fără preț setat"],
+            help="Filtrează comenzile după preț"
+        )
+    
+    # Resetează session state dacă s-a schimbat beneficiarul, filtrul de stare sau filtrul de preț
     if ('last_beneficiar' not in st.session_state or st.session_state.last_beneficiar != selected_beneficiar or
-        'last_stare_filter' not in st.session_state or st.session_state.last_stare_filter != stare_filter):
+        'last_stare_filter' not in st.session_state or st.session_state.last_stare_filter != stare_filter or
+        'last_pret_filter' not in st.session_state or st.session_state.last_pret_filter != pret_filter):
         st.session_state.last_beneficiar = selected_beneficiar
         st.session_state.last_stare_filter = stare_filter
+        st.session_state.last_pret_filter = pret_filter
         if 'comenzi_editor_data' in st.session_state:
             del st.session_state.comenzi_editor_data
 
@@ -181,8 +190,14 @@ with tab1:
                 Comanda.stare.in_(["Finalizată", "In lucru"])
             ).order_by(Comanda.numar_comanda.desc()).all()
 
+    # Aplică filtrul de preț
+    if pret_filter == "Cu preț setat":
+        comenzi_nefacturate = [c for c in comenzi_nefacturate if c.pret and c.pret > 0]
+    elif pret_filter == "Fără preț setat":
+        comenzi_nefacturate = [c for c in comenzi_nefacturate if not c.pret or c.pret == 0]
+    
     if not comenzi_nefacturate:
-        st.info("Nu există comenzi nefacturate pentru acest beneficiar.")
+        st.info("Nu există comenzi nefacturate pentru acest beneficiar și filtrele selectate.")
     else:
         st.markdown("### Comenzi disponibile pentru facturare")
         
@@ -194,7 +209,7 @@ with tab1:
                 "ID": comanda.id,
                 "Nr. Comandă": comanda.numar_comanda,
                 "Beneficiar": comanda.beneficiar.nume,
-                "Data": comanda.data.strftime("%d-%m-%Y"),
+                "Data Comandă": comanda.data.strftime("%d-%m-%Y"),
                 "Nume Lucrare": comanda.nume_lucrare,
                 "Tiraj": comanda.tiraj,
                 "Preț": comanda.pret or 0.0,
@@ -209,6 +224,17 @@ with tab1:
         # Inițializare session state pentru a păstra selecțiile
         # Actualizează întotdeauna cu datele fresh din baza de date
         st.session_state.comenzi_editor_data = df_comenzi
+        
+        # Stilizare pentru prețuri - adăugăm CSS pentru a face prețurile roșii și bold
+        st.markdown("""
+            <style>
+            /* Stilizare pentru coloana Preț */
+            [data-testid="stDataFrameResizable"] [data-testid="column-Preț"] {
+                color: #dc3545 !important;
+                font-weight: bold !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
         
         # Editare DataFrame pentru selecție
         edited_df = st.data_editor(
@@ -226,6 +252,10 @@ with tab1:
                     "Beneficiar",
                     width="medium"
                 ),
+                "Data Comandă": st.column_config.TextColumn(
+                    "Data Comandă",
+                    width="small"
+                ),
                 "Preț": st.column_config.NumberColumn(
                     "Preț (RON)",
                     help="Editează prețul pentru fiecare comandă",
@@ -239,7 +269,7 @@ with tab1:
                     max_chars=100
                 )
             },
-            disabled=["Nr. Comandă", "Beneficiar", "Data", "Nume Lucrare", "Tiraj", "Cod FSC", "Certificare FSC"],
+            disabled=["Nr. Comandă", "Beneficiar", "Data Comandă", "Nume Lucrare", "Tiraj", "Cod FSC", "Certificare FSC"],
             key="comenzi_selector"
         )
         
@@ -288,6 +318,7 @@ with tab1:
                 export_data = []
                 for idx, row in comenzi_selectate.iterrows():
                     export_data.append({
+                        "Data Comandă": row["Data Comandă"],
                         "Nume Lucrare": row["Nume Lucrare"],
                         "Tiraj": row["Tiraj"],
                         "Preț": row["Preț"],
@@ -306,16 +337,21 @@ with tab1:
                     workbook = writer.book
                     worksheet = writer.sheets['Facturi']
                     
-                    # Format pentru preț
-                    money_format = workbook.add_format({'num_format': '#,##0.00 RON'})
-                    worksheet.set_column('C:C', 15, money_format)
+                    # Format pentru preț - roșu și bold
+                    money_format = workbook.add_format({
+                        'num_format': '#,##0.00 RON',
+                        'bold': True,
+                        'font_color': 'red'
+                    })
+                    worksheet.set_column('D:D', 15, money_format)
                     
                     # Ajustare lățime coloane
-                    worksheet.set_column('A:A', 40)  # Nume Lucrare
-                    worksheet.set_column('B:B', 10)  # Tiraj
-                    worksheet.set_column('D:D', 15)  # Cod FSC
-                    worksheet.set_column('E:E', 20)  # Certificare FSC
-                    worksheet.set_column('F:F', 20)  # PO Client
+                    worksheet.set_column('A:A', 15)  # Data Comandă
+                    worksheet.set_column('B:B', 40)  # Nume Lucrare
+                    worksheet.set_column('C:C', 10)  # Tiraj
+                    worksheet.set_column('E:E', 15)  # Cod FSC
+                    worksheet.set_column('F:F', 20)  # Certificare FSC
+                    worksheet.set_column('G:G', 20)  # PO Client
                 
             
             with col3:
@@ -463,6 +499,8 @@ with tab2:
             raport_data.append({
                 "Data": comanda.data.strftime("%d-%m-%Y"),
                 "Nr. Comandă": comanda.numar_comanda,
+                "Nr. Factură": comanda.nr_factura or "-",
+                "Data Factură": comanda.data_facturare.strftime("%d-%m-%Y") if comanda.data_facturare else "-",
                 "Beneficiar": nume_beneficiar,
                 "Nume Lucrare": comanda.nume_lucrare,
                 "Tiraj": comanda.tiraj,
