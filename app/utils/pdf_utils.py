@@ -35,13 +35,14 @@ def genereaza_comanda_pdf(comanda, beneficiar, hartie):
     
     # Header cu echipament, număr comandă și dată
     data_comanda = comanda.data.strftime("%d-%m-%Y")
+    numar_comanda_int = int(comanda.numar_comanda) if comanda.numar_comanda else comanda.numar_comanda
     header_data = [
-        [comanda.echipament, f"COMANDA NR. {comanda.numar_comanda}/{data_comanda}"]
+        [comanda.echipament, f"COMANDA NR. {numar_comanda_int}/{data_comanda}"]
     ]
-    header_table = Table(header_data, colWidths=[6.4*cm, 6.4*cm], rowHeights=[7*mm])
+    header_table = Table(header_data, colWidths=[6.4*cm, 6.4*cm], rowHeights=[6*mm])
     header_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
         ('ALIGN', (0, 0), (0, 0), 'LEFT'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),

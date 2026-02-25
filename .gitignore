@@ -47,3 +47,4 @@ app/beneficiari.xlsx
 *.pdf
 app/app/static/comenzi/*.pdf
 app/app/static/rapoarte/*.pdf
+.DS_Store

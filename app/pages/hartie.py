@@ -454,5 +454,197 @@ with tab4:
     else:
         st.info("Nu există intrări înregistrate.")
 
+with st.expander("🔧 Editează/Șterge Intrări Existente", expanded=False):
+    st.warning("⚠️ **Atenție**: Editarea/ștergerea intrărilor va afecta stocul de hârtie!")
+    
+    # Toggle pentru a permite editarea
+    allow_edit_intrari = st.toggle("🔓 Permite editare intrări", key="allow_intrari_edit")
+    
+    if not allow_edit_intrari:
+        st.info("👆 Activează 'Permite editare intrări' pentru a modifica/șterge intrările")
+    else:
+        # Obține toate intrările, sortate descrescător după dată
+        toate_intrarile = session.query(Stoc).join(Hartie).order_by(Stoc.data.desc()).all()
+        
+        if toate_intrarile:
+            # Creează opțiuni pentru selectbox
+            intrare_options = []
+            for intrare in toate_intrarile:
+                intrare_options.append(
+                    f"{intrare.id} - {intrare.data.strftime('%d-%m-%Y')} - {intrare.hartie.sortiment} - {intrare.cantitate:.2f} coli - {intrare.nr_factura}"
+                )
+            
+            selected_intrare = st.selectbox(
+                "Selectează intrarea de modificat/șters:",
+                [""] + intrare_options,
+                help="Selectează intrarea pe care vrei să o modifici sau să o ștergi"
+            )
+            
+            if selected_intrare and selected_intrare != "":
+                intrare_id = int(selected_intrare.split(" - ")[0])
+                intrare_selectata = session.query(Stoc).get(intrare_id)
+                
+                # Afișare detalii intrare
+                st.markdown("### Detalii Intrare Selectată")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.write(f"**Data:** {intrare_selectata.data.strftime('%d-%m-%Y')}")
+                    st.write(f"**Sortiment:** {intrare_selectata.hartie.sortiment}")
+                with col2:
+                    st.write(f"**Cantitate:** {intrare_selectata.cantitate:.2f} coli")
+                    st.write(f"**Nr. Factură:** {intrare_selectata.nr_factura}")
+                with col3:
+                    st.write(f"**Furnizor:** {intrare_selectata.furnizor}")
+                    st.write(f"**Cod Certificare:** {intrare_selectata.cod_certificare or '-'}")
+                
+                # Butoane acțiuni
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    if st.button("✏️ Editează Intrarea", key="edit_intrare_btn", use_container_width=True):
+                        st.session_state.edit_intrare_id = intrare_id
+                        st.session_state.show_edit_form = True
+                        st.rerun()
+                
+                with col2:
+                    if st.button("🗑️ Șterge Intrarea", key="delete_intrare_btn", type="secondary", use_container_width=True):
+                        st.session_state.delete_intrare_id = intrare_id
+                        st.session_state.show_delete_confirm = True
+                        st.rerun()
+                
+                # Formular de editare (dacă a fost activat)
+                if st.session_state.get('show_edit_form', False) and st.session_state.get('edit_intrare_id') == intrare_id:
+                    st.markdown("---")
+                    st.markdown("### 📝 Editează Intrarea")
+                    
+                    with st.form("edit_intrare_form"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            new_data = st.date_input("Data intrare:", value=intrare_selectata.data)
+                            new_nr_factura = st.text_input("Număr factură:", value=intrare_selectata.nr_factura)
+                        
+                        with col2:
+                            new_cantitate = st.number_input(
+                                "Cantitate (coli):", 
+                                min_value=0.0, 
+                                value=float(intrare_selectata.cantitate), 
+                                step=1.0
+                            )
+                            new_furnizor = st.text_input("Furnizor:", value=intrare_selectata.furnizor)
+                        
+                        new_cod_certificare = st.text_input("Cod certificare:", value=intrare_selectata.cod_certificare or "")
+                        
+                        # Calculează impactul asupra stocului
+                        diferenta_cantitate = new_cantitate - intrare_selectata.cantitate
+                        stoc_actual = intrare_selectata.hartie.stoc
+                        stoc_nou = stoc_actual + diferenta_cantitate
+                        
+                        if diferenta_cantitate != 0:
+                            st.markdown("### 📊 Impact asupra stocului")
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Stoc actual", f"{stoc_actual:.2f} coli")
+                            with col2:
+                                st.metric("Stoc nou", f"{stoc_nou:.2f} coli", delta=f"{diferenta_cantitate:+.2f}")
+                            with col3:
+                                if diferenta_cantitate > 0:
+                                    st.success(f"+{diferenta_cantitate:.2f} coli")
+                                else:
+                                    st.error(f"{diferenta_cantitate:.2f} coli")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            save_changes = st.form_submit_button("💾 Salvează modificările", type="primary", use_container_width=True)
+                        with col2:
+                            cancel_edit = st.form_submit_button("❌ Anulează", use_container_width=True)
+                        
+                        if cancel_edit:
+                            st.session_state.show_edit_form = False
+                            if 'edit_intrare_id' in st.session_state:
+                                del st.session_state.edit_intrare_id
+                            st.rerun()
+                        
+                        if save_changes:
+                            if not new_nr_factura.strip():
+                                st.error("Numărul facturii este obligatoriu!")
+                            elif not new_furnizor.strip():
+                                st.error("Furnizorul este obligatoriu!")
+                            elif new_cantitate <= 0:
+                                st.error("Cantitatea trebuie să fie mai mare decât 0!")
+                            elif stoc_nou < 0:
+                                st.error(f"Stocul nu poate deveni negativ! Stoc actual: {stoc_actual:.2f}, încerci să scazi {abs(diferenta_cantitate):.2f}")
+                            else:
+                                try:
+                                    # Actualizează intrarea
+                                    intrare_selectata.data = new_data
+                                    intrare_selectata.nr_factura = new_nr_factura.strip()
+                                    intrare_selectata.cantitate = new_cantitate
+                                    intrare_selectata.furnizor = new_furnizor.strip()
+                                    intrare_selectata.cod_certificare = new_cod_certificare.strip() if new_cod_certificare.strip() else None
+                                    
+                                    # Actualizează stocul hârtiei
+                                    hartie_afectata = intrare_selectata.hartie
+                                    hartie_afectata.stoc = stoc_nou
+                                    hartie_afectata.greutate = hartie_afectata.calculeaza_greutate()
+                                    
+                                    session.commit()
+                                    
+                                    # Reset form
+                                    st.session_state.show_edit_form = False
+                                    if 'edit_intrare_id' in st.session_state:
+                                        del st.session_state.edit_intrare_id
+                                    
+                                    st.success(f"✅ Intrarea a fost actualizată cu succes!")
+                                    st.balloons()
+                                    st.rerun()
+                                    
+                                except Exception as e:
+                                    session.rollback()
+                                    st.error(f"Eroare la actualizare: {e}")
+                
+                # Confirmare ștergere (dacă a fost activată)
+                if st.session_state.get('show_delete_confirm', False) and st.session_state.get('delete_intrare_id') == intrare_id:
+                    st.markdown("---")
+                    st.error("### ⚠️ Confirmare Ștergere")
+                    st.warning(f"Ești sigur că vrei să ștergi această intrare de **{intrare_selectata.cantitate:.2f} coli**?")
+                    st.info(f"Stocul pentru '{intrare_selectata.hartie.sortiment}' va scădea de la **{intrare_selectata.hartie.stoc:.2f}** la **{intrare_selectata.hartie.stoc - intrare_selectata.cantitate:.2f}** coli.")
+                    
+                    if intrare_selectata.hartie.stoc - intrare_selectata.cantitate < 0:
+                        st.error("❌ **NU SE POATE ȘTERGE!** Ștergerea acestei intrări ar face stocul să devină negativ!")
+                    else:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("✅ Da, șterge intrarea", key="confirm_delete", type="primary", use_container_width=True):
+                                try:
+                                    # Actualizează stocul hârtiei înainte de ștergere
+                                    hartie_afectata = intrare_selectata.hartie
+                                    hartie_afectata.stoc -= intrare_selectata.cantitate
+                                    hartie_afectata.greutate = hartie_afectata.calculeaza_greutate()
+                                    
+                                    # Șterge intrarea
+                                    session.delete(intrare_selectata)
+                                    session.commit()
+                                    
+                                    # Reset state
+                                    st.session_state.show_delete_confirm = False
+                                    if 'delete_intrare_id' in st.session_state:
+                                        del st.session_state.delete_intrare_id
+                                    
+                                    st.success(f"✅ Intrarea a fost ștearsă cu succes!")
+                                    st.rerun()
+                                    
+                                except Exception as e:
+                                    session.rollback()
+                                    st.error(f"Eroare la ștergere: {e}")
+                        
+                        with col2:
+                            if st.button("❌ Nu, anulează", key="cancel_delete", use_container_width=True):
+                                st.session_state.show_delete_confirm = False
+                                if 'delete_intrare_id' in st.session_state:
+                                    del st.session_state.delete_intrare_id
+                                st.rerun()
+        else:
+            st.info("Nu există intrări înregistrate pentru editare/ștergere.")
+
 # Închidere sesiune
 session.close()

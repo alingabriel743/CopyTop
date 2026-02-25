@@ -15,7 +15,7 @@ CERTIFICARI_FSC_MATERIE_PRIMA = [
     "FSC Mix Credit",
     "FSC Recycled Credit",
     "FSC Reciclat 100%",
-    "FSC Mix Credit 90%"
+    "FSC Mix 90%"
 ]
 
 # Coduri FSC pentru produsul final (Output Product Type)

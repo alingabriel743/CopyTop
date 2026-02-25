@@ -221,9 +221,30 @@ with tab1:
         # Afișează comenzile cu posibilitate de selecție
         df_comenzi = pd.DataFrame(comenzi_data)
         
-        # Inițializare session state pentru a păstra selecțiile
-        # Actualizează întotdeauna cu datele fresh din baza de date
-        st.session_state.comenzi_editor_data = df_comenzi
+        # Inițializare session state pentru selecțiile checkbox-urilor
+        if 'selectii_comenzi' not in st.session_state:
+            st.session_state.selectii_comenzi = {}
+        
+        # Buton pentru selectare toate comenzile - PLASAT ÎNAINTE DE DATA_EDITOR
+        col_select_all, col_deselecteaza, col_info = st.columns([1, 1, 2])
+        with col_select_all:
+            if st.button("✅ Selectează toate", key="select_all_btn"):
+                # Marchează toate comenzile ca selectate în session state
+                for idx, row in df_comenzi.iterrows():
+                    comanda_id = row["ID"]
+                    st.session_state.selectii_comenzi[comanda_id] = True
+                st.rerun()
+        
+        with col_deselecteaza:
+            if st.button("❌ Deselectează toate", key="deselect_all_btn"):
+                # Deselectează toate comenzile
+                st.session_state.selectii_comenzi = {}
+                st.rerun()
+        
+        # Actualizează DataFrame-ul cu selecțiile din session state
+        for idx, row in df_comenzi.iterrows():
+            comanda_id = row["ID"] 
+            df_comenzi.at[idx, "✓"] = st.session_state.selectii_comenzi.get(comanda_id, False)
         
         # Stilizare pentru prețuri - adăugăm CSS pentru a face prețurile roșii și bold
         st.markdown("""
@@ -273,15 +294,19 @@ with tab1:
             key="comenzi_selector"
         )
         
-        # Actualizează session state cu datele editate
-        st.session_state.comenzi_editor_data = edited_df
+        # Actualizează session state cu selecțiile din data_editor
+        for idx, row in edited_df.iterrows():
+            comanda_id = row["ID"]
+            st.session_state.selectii_comenzi[comanda_id] = row["✓"]
         
         # Comenzi selectate
         comenzi_selectate = edited_df[edited_df["✓"] == True]
         
+        with col_info:
+            if len(comenzi_selectate) > 0:
+                st.success(f"✅ {len(comenzi_selectate)} comenzi selectate pentru facturare")
+        
         if len(comenzi_selectate) > 0:
-            st.success(f"✅ {len(comenzi_selectate)} comenzi selectate pentru facturare")
-            
             # Calculează total
             total_factura = comenzi_selectate["Preț"].sum()
             st.metric("Total factură", f"{total_factura:.2f} RON")
@@ -472,7 +497,7 @@ with tab2:
         ["Toți beneficiarii"] + [b.nume for b in session.query(Beneficiar).order_by(Beneficiar.nume).all()]
     )
     
-    # Construire query
+    # Construire query cu sortare după numărul facturii
     query = session.query(Comanda).join(Beneficiar).filter(
         Comanda.facturata == True,
         Comanda.data >= start_date,
@@ -484,7 +509,8 @@ with tab2:
         if beneficiar:
             query = query.filter(Comanda.beneficiar_id == beneficiar.id)
     
-    comenzi_facturate = query.all()
+    # Sortare după numărul facturii (crescător) - facturile fără nr vor fi la final
+    comenzi_facturate = query.order_by(Comanda.nr_factura.asc().nulls_last()).all()
     
     if comenzi_facturate:
         # Pregătește datele pentru afișare
