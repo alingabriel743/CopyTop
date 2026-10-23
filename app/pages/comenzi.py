@@ -17,10 +17,10 @@ st.set_page_config(page_title="Gestiune Comenzi", page_icon="📋", layout="wide
 st.title("Gestiune comenzi")
 
 
-def input_dimensiune(label, key=None, valoare=None):
-    """Câmp text pentru dimensiuni în mm (fără butoane +/-). Returnează float > 0 sau None dacă e gol/invalid."""
+def input_numar(label, key=None, valoare=None, intreg=False, placeholder=""):
+    """Câmp text numeric fără valoare implicită și fără butoane +/-. Returnează numărul > 0 sau None dacă e gol/invalid."""
     text_initial = "" if valoare is None else f"{valoare:g}"
-    text = st.text_input(label, value=text_initial, key=key, placeholder="mm")
+    text = st.text_input(label, value=text_initial, key=key, placeholder=placeholder)
     if not text.strip():
         return None
     try:
@@ -31,7 +31,16 @@ def input_dimensiune(label, key=None, valoare=None):
     if numar <= 0:
         st.error("Valoarea trebuie să fie mai mare decât 0!")
         return None
+    if intreg:
+        if not numar.is_integer():
+            st.error("Introdu un număr întreg!")
+            return None
+        return int(numar)
     return numar
+
+
+def input_dimensiune(label, key=None, valoare=None):
+    return input_numar(label, key=key, valoare=valoare, placeholder="mm")
 
 # Încărcare indici coală tipar
 try:
@@ -689,8 +698,8 @@ with tab2:
         if not beneficiari:
             st.warning("Nu există beneficiari. Adaugă mai întâi un beneficiar.")
             st.stop()
-        beneficiar_options = [b.nume for b in beneficiari]
-        beneficiar_nume = st.selectbox("Beneficiar*:", beneficiar_options, index=None, placeholder="Alege beneficiarul", key=f"beneficiar_{form_key}")
+        beneficiar_options = ["— Alege beneficiarul —"] + [b.nume for b in beneficiari]
+        beneficiar_nume = st.selectbox("Beneficiar*:", beneficiar_options, key=f"beneficiar_{form_key}")
         beneficiar_id = next((b.id for b in beneficiari if b.nume == beneficiar_nume), None)
 
     # Nume lucrare, tiraj, PO client pe același rând - CERINȚA 1
@@ -698,7 +707,7 @@ with tab2:
     with col1:
         nume_lucrare = st.text_input("Nume lucrare*:", placeholder="Ex: Broșură prezentare companie", key=f"nume_{form_key}")
     with col2:
-        tiraj = st.number_input("Tiraj*:", min_value=1, value=None, step=None, placeholder="Tiraj", key=f"tiraj_{form_key}")
+        tiraj = input_numar("Tiraj*:", key=f"tiraj_{form_key}", intreg=True, placeholder="Tiraj")
     with col3:
         po_client = st.text_input("PO Client:", key=f"po_{form_key}")
     
@@ -1202,7 +1211,7 @@ with tab3:
                         numar_laminari = st.number_input("Număr laminări:", min_value=1, value=comanda.numar_laminari or 1, key="edit_numar_laminari")
                 
                 # Fără st.form, ca butonul de salvare de sus să preia și valorile din câmpurile de mai jos
-                with st.container(border=True):
+                with st.container():
                     st.markdown("### Informații de bază")
                     col1, col2, col3 = st.columns(3)
                     with col1:
