@@ -1,5 +1,6 @@
 # pages/4_comenzi.py
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from datetime import datetime, timedelta
 import math
@@ -1119,6 +1120,26 @@ with tab3:
             if edit_mode:
                 with col_save_top:
                     save_top_button = st.button("💾 Salvează modificările", type="primary", use_container_width=True, key="save_top_edit")
+                # Enter într-un câmp din editare apasă "Salvează modificările" (ca pe vremea formularului)
+                components.html("""
+                <script>
+                const doc = window.parent.document;
+                if (!window.parent.__copytopEnterSave) {
+                    window.parent.__copytopEnterSave = true;
+                    doc.addEventListener("keydown", function (e) {
+                        if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
+                        const input = e.target;
+                        if (!input || input.tagName !== "INPUT" || input.getAttribute("role") === "combobox") return;
+                        const panel = input.closest('[role="tabpanel"]') || doc;
+                        const gasesteButon = () => Array.from(panel.querySelectorAll("button"))
+                            .find(b => b.innerText.includes("Salvează modificările"));
+                        if (!gasesteButon()) return;
+                        // lasă Streamlit să preia valoarea tastată, apoi salvează
+                        setTimeout(() => { const buton = gasesteButon(); if (buton) buton.click(); }, 300);
+                    }, true);
+                }
+                </script>
+                """, height=0)
             
             if edit_mode:
                 # FORMULAR DE EDITARE
