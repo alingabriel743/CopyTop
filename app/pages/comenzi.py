@@ -1238,7 +1238,7 @@ with tab3:
 
                     col1, col2 = st.columns(2)
                     with col1:
-                        tiraj = st.number_input("Tiraj*:", min_value=1, value=comanda.tiraj)
+                        tiraj = input_numar("Tiraj*:", key=f"edit_tiraj_{comanda.id}", valoare=comanda.tiraj, intreg=True, placeholder="Tiraj")
                     with col2:
                         pass  # Empty column for spacing
 
@@ -1271,11 +1271,11 @@ with tab3:
 
                     st.markdown("### Calcule și Coli")
                     # Calculează valorile automat folosind valorile din afara formularului
-                    nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
+                    nr_coli_tipar = math.ceil(((tiraj or 0) * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
                     coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=comanda.coli_prisoase or 0)
                     total_coli = nr_coli_tipar + coli_prisoase
                     # Greutate în kg cu 3 zecimale rotunjite în sus
-                    greutate = math.ceil((latime or 0) * (inaltime or 0) * nr_pagini * indice_corectie * hartie_selectata_edit.gramaj * tiraj / (2 * 10**9) * 1000) / 1000
+                    greutate = math.ceil((latime or 0) * (inaltime or 0) * nr_pagini * indice_corectie * hartie_selectata_edit.gramaj * (tiraj or 0) / (2 * 10**9) * 1000) / 1000
 
                     col1, col2, col3 = st.columns(3)
                     with col1:
@@ -1385,7 +1385,9 @@ with tab3:
 
                     if save_button or save_top_button:
                             # Validări
-                            if not latime or not inaltime:
+                            if not tiraj:
+                                st.error("Tirajul este obligatoriu!")
+                            elif not latime or not inaltime:
                                 st.error("Lățimea și înălțimea sunt obligatorii!")
                             elif nr_pagini % 2 != 0:
                                 st.error("Numărul de pagini trebuie să fie multiplu de 2!")
