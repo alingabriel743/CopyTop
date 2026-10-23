@@ -16,6 +16,23 @@ st.set_page_config(page_title="Gestiune Comenzi", page_icon="📋", layout="wide
 
 st.title("Gestiune comenzi")
 
+
+def input_dimensiune(label, key=None, valoare=None):
+    """Câmp text pentru dimensiuni în mm (fără butoane +/-). Returnează float > 0 sau None dacă e gol/invalid."""
+    text_initial = "" if valoare is None else f"{valoare:g}"
+    text = st.text_input(label, value=text_initial, key=key, placeholder="mm")
+    if not text.strip():
+        return None
+    try:
+        numar = float(text.strip().replace(",", "."))
+    except ValueError:
+        st.error("Introdu un număr valid!")
+        return None
+    if numar <= 0:
+        st.error("Valoarea trebuie să fie mai mare decât 0!")
+        return None
+    return numar
+
 # Încărcare indici coală tipar
 try:
     config_path = Path(__file__).parent.parent / "data" / "coale_tipar.toml"
@@ -673,7 +690,7 @@ with tab2:
             st.warning("Nu există beneficiari. Adaugă mai întâi un beneficiar.")
             st.stop()
         beneficiar_options = [b.nume for b in beneficiari]
-        beneficiar_nume = st.selectbox("Beneficiar*:", beneficiar_options, key=f"beneficiar_{form_key}")
+        beneficiar_nume = st.selectbox("Beneficiar*:", beneficiar_options, index=None, placeholder="Alege beneficiarul", key=f"beneficiar_{form_key}")
         beneficiar_id = next((b.id for b in beneficiari if b.nume == beneficiar_nume), None)
 
     # Nume lucrare, tiraj, PO client pe același rând - CERINȚA 1
@@ -681,16 +698,16 @@ with tab2:
     with col1:
         nume_lucrare = st.text_input("Nume lucrare*:", placeholder="Ex: Broșură prezentare companie", key=f"nume_{form_key}")
     with col2:
-        tiraj = st.number_input("Tiraj*:", min_value=1, value=500, step=None, key=f"tiraj_{form_key}")
+        tiraj = st.number_input("Tiraj*:", min_value=1, value=None, step=None, placeholder="Tiraj", key=f"tiraj_{form_key}")
     with col3:
         po_client = st.text_input("PO Client:", key=f"po_{form_key}")
     
     # Format și descriere - CERINȚA 2 (Format, descriere lucrare este ok)
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
     with col1:
-        latime = st.number_input("Lățime (mm)*:", min_value=1, value=210, step=None, key=f"latime_{form_key}")
+        latime = input_dimensiune("Lățime (mm)*:", key=f"latime_{form_key}")
     with col2:
-        inaltime = st.number_input("Înălțime (mm)*:", min_value=1, value=297, step=None, key=f"inaltime_{form_key}")
+        inaltime = input_dimensiune("Înălțime (mm)*:", key=f"inaltime_{form_key}")
     with col3:
         nr_pagini = st.number_input("Nr. pagini*:", min_value=2, value=2, step=2, key=f"nr_pag_{form_key}")
         if nr_pagini % 2 != 0:
@@ -764,10 +781,11 @@ with tab2:
     coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=0, help="Coli suplimentare pentru prisos", key=f"coli_pris_{form_key}")
 
     # Calculează valorile automat
-    nr_coli_tipar = math.ceil((tiraj * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
+    # Câmpurile obligatorii goale contează 0 la calcule până sunt completate
+    nr_coli_tipar = math.ceil(((tiraj or 0) * nr_pagini) / (2 * nr_pagini_pe_coala)) if nr_pagini_pe_coala > 0 else 0
     total_coli = nr_coli_tipar + coli_prisoase
     # Greutate în kg cu 3 zecimale rotunjite în sus
-    greutate = math.ceil(latime * inaltime * nr_pagini * indice_corectie * hartie_selectata.gramaj * tiraj / (2 * 10**9) * 1000) / 1000
+    greutate = math.ceil((latime or 0) * (inaltime or 0) * nr_pagini * indice_corectie * hartie_selectata.gramaj * (tiraj or 0) / (2 * 10**9) * 1000) / 1000
 
     # Calculează coli mari pentru compatibilitate
     coli_mari = total_coli / indice_coala if indice_coala > 0 else None
@@ -873,7 +891,13 @@ with tab2:
     with col1:
         if st.button("Adaugă Comandă", type="primary", use_container_width=True):
             # Validări
-            if nr_pagini % 2 != 0:
+            if not beneficiar_id:
+                st.error("Beneficiarul este obligatoriu!")
+            elif not tiraj:
+                st.error("Tirajul este obligatoriu!")
+            elif not latime or not inaltime:
+                st.error("Lățimea și înălțimea sunt obligatorii!")
+            elif nr_pagini % 2 != 0:
                 st.error("Numărul de pagini trebuie să fie multiplu de 2!")
             elif not nume_lucrare.strip():
                 st.error("Numele lucrării este obligatoriu!")
@@ -1076,10 +1100,16 @@ with tab3:
                         st.error(f"Eroare la revenirea la 'In lucru': {e}")
             
             # Toggle pentru modul editare - doar pentru comenzi "In lucru"
+            col_toggle, col_save_top = st.columns([3, 1])
             if not readonly and not is_finalized:
-                edit_mode = st.toggle("🔧 Mod editare", key="edit_mode_toggle")
+                with col_toggle:
+                    edit_mode = st.toggle("🔧 Mod editare", key="edit_mode_toggle")
             else:
                 edit_mode = False
+
+            if edit_mode:
+                with col_save_top:
+                    save_top_button = st.button("💾 Salvează modificările", type="primary", use_container_width=True, key="save_top_edit")
             
             if edit_mode:
                 # FORMULAR DE EDITARE
@@ -1171,7 +1201,8 @@ with tab3:
                         format_laminare = st.selectbox("Format laminare*:", FORMATE_LAMINARE, index=format_index, key="edit_format_laminare")
                         numar_laminari = st.number_input("Număr laminări:", min_value=1, value=comanda.numar_laminari or 1, key="edit_numar_laminari")
                 
-                with st.form("edit_comanda_main_form"):
+                # Fără st.form, ca butonul de salvare de sus să preia și valorile din câmpurile de mai jos
+                with st.container(border=True):
                     st.markdown("### Informații de bază")
                     col1, col2, col3 = st.columns(3)
                     with col1:
@@ -1205,9 +1236,9 @@ with tab3:
                     st.markdown("### Format")
                     col1, col2, col3, col4 = st.columns(4)
                     with col1:
-                        latime = st.number_input("Lățime (mm)*:", min_value=1, value=int(comanda.latime))
+                        latime = input_dimensiune("Lățime (mm)*:", key=f"edit_latime_{comanda.id}", valoare=comanda.latime)
                     with col2:
-                        inaltime = st.number_input("Înălțime (mm)*:", min_value=1, value=int(comanda.inaltime))
+                        inaltime = input_dimensiune("Înălțime (mm)*:", key=f"edit_inaltime_{comanda.id}", valoare=comanda.inaltime)
                     with col3:
                         nr_pagini = st.number_input("Număr pagini*:", min_value=2, value=comanda.nr_pagini, step=2)
                     with col4:
@@ -1235,7 +1266,7 @@ with tab3:
                     coli_prisoase = st.number_input("Coli prisoase:", min_value=0, value=comanda.coli_prisoase or 0)
                     total_coli = nr_coli_tipar + coli_prisoase
                     # Greutate în kg cu 3 zecimale rotunjite în sus
-                    greutate = math.ceil(latime * inaltime * nr_pagini * indice_corectie * hartie_selectata_edit.gramaj * tiraj / (2 * 10**9) * 1000) / 1000
+                    greutate = math.ceil((latime or 0) * (inaltime or 0) * nr_pagini * indice_corectie * hartie_selectata_edit.gramaj * tiraj / (2 * 10**9) * 1000) / 1000
 
                     col1, col2, col3 = st.columns(3)
                     with col1:
@@ -1313,7 +1344,7 @@ with tab3:
                         taiere_cutter = st.checkbox("Tăiere Cutter/Plotter", value=comanda.taiere_cutter)
                     
                     with col2:
-                        st.info("ℹ️ Opțiunile Big și Laminare sunt disponibile mai sus, în afara formularului")
+                        st.info("ℹ️ Opțiunile Big și Laminare sunt disponibile mai sus")
 
                     col1, col2 = st.columns(2)
                     with col1:
@@ -1339,13 +1370,15 @@ with tab3:
                     # Butoane salvare
                     col1, col2 = st.columns(2)
                     with col1:
-                        save_button = st.form_submit_button("💾 Salvează modificările", type="primary", use_container_width=True)
+                        save_button = st.button("💾 Salvează modificările", type="primary", use_container_width=True, key="save_bottom_edit")
                     with col2:
-                        cancel_button = st.form_submit_button("❌ Anulează", use_container_width=True)
+                        cancel_button = st.button("❌ Anulează", use_container_width=True, key="cancel_edit")
 
-                    if save_button:
+                    if save_button or save_top_button:
                             # Validări
-                            if nr_pagini % 2 != 0:
+                            if not latime or not inaltime:
+                                st.error("Lățimea și înălțimea sunt obligatorii!")
+                            elif nr_pagini % 2 != 0:
                                 st.error("Numărul de pagini trebuie să fie multiplu de 2!")
                             elif not nume_lucrare.strip():
                                 st.error("Numele lucrării este obligatoriu!")
@@ -1462,7 +1495,7 @@ with tab3:
                 with col2:
                     st.write(f"**Nume lucrare:** {comanda.nume_lucrare}")
                     st.write(f"**Tiraj:** {comanda.tiraj}")
-                    st.write(f"**Dimensiuni:** {comanda.latime}x{comanda.inaltime}mm")
+                    st.write(f"**Dimensiuni:** {comanda.latime}x{comanda.inaltime}mm (indice corecție: {comanda.indice_corectie:.4f})")
                     st.write(f"**Nr. pagini:** {comanda.nr_pagini}")
                     st.write(f"**Nr. culori:** {comanda.nr_culori}")
                     st.write(f"**Plastifiere:** {comanda.plastifiere or 'Fără plastifiere'}")
